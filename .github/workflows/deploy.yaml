@@ -114,9 +114,9 @@ jobs:
         if: ${{ github.event_name != 'pull_request' }}
         run: make build/packages/release.tar.gz
 
-      - name: Create Release Binaries
-        if: ${{ github.event_name != 'pull_request' }}
-        run: make release-binaries
+      # - name: Create Release Binaries
+      #   if: ${{ github.event_name != 'pull_request' }}
+      #   run: make release-binaries
 
       - name: Login to GitHub Container Registry
         # https://github.com/docker/login-action#github-packages-docker-registry
@@ -148,12 +148,12 @@ jobs:
       - name: Publish Binaries (Pull Request)
         # https://github.com/actions/upload-artifact
         uses: actions/upload-artifact@v7
-        if: ${{  github.event_name == 'pull_request' }}
+        if: ${{ github.event_name == 'pull_request' }}
         with:
           name: commit-binaries-${{ github.sha }}
           path: |
-            bin/go/linxux_amd64/example
-            bin/go/windows_amd64/example.exe
+            build/bin/linux_amd64/example
+            build/bin/windows_amd64/example.exe
           retention-days: 1
           if-no-files-found: error
 
@@ -164,8 +164,8 @@ jobs:
         with:
           name: commit-binaries-${{ github.sha }}
           path: |
-            bin/go/linxux_amd64/example
-            bin/go/windows_amd64/example.exe
+            build/bin/linux_amd64/example
+            build/bin/windows_amd64/example.exe
           retention-days: 7
           if-no-files-found: error
 
@@ -179,9 +179,9 @@ jobs:
           prerelease: false
           files: |
             LICENSE
-            bin/release.tar.gz
-            bin/release/example.exe
-            bin/release/example
+            build/packages/release.tar.gz
+            build/release/example.exe
+            build/release/example
 
       - name: Publish Application
         # https://github.com/actions/upload-artifact
@@ -190,27 +190,28 @@ jobs:
         with:
           name: release.tar.gz
           path: |
-            bin/release.tar.gz
-            bin/release/*
+            build/packages/release.tar.gz
+            build/release/*
 
       - name: Push Images (Commit)
         if: ${{ !startsWith(github.ref, 'refs/tags/') && github.event_name != 'pull_request' }}
         run: |
           make REGISTRY=docker.io/cloudfra images
-          make bin/release.tar.gz
+          make build/packages/release.tar.gz
 
       - name: Push Images (Release)
         if: startsWith(github.ref, 'refs/tags/')
         run: |
           make DOCKER_PUSH=--push REGISTRY=docker.io/cloudfra images
           make DOCKER_PUSH=--push REGISTRY=ghcr.io/cloudfra images
-          make bin/release.tar.gz
+          make build/packages/release.tar.gz
 
       - name: Push Images (Latest)
         if: startsWith(github.ref, 'refs/tags/') && !contains(github.ref, '-')
         run: |
           make DOCKER_PUSH=--push REGISTRY=docker.io/cloudfra images
           make DOCKER_PUSH=--push REGISTRY=ghcr.io/cloudfra images
+
   build-windows:
     name: "Build Windows"
     runs-on: ["self-hosted", "windows"]
