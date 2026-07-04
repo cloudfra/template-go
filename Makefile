@@ -72,8 +72,8 @@ empty:=
 space := $(empty) $(empty)
 
 GCLOUD = gcloud --project $(GCP_PROJECT)
-TERRAFORM = terraform
-GOCOVER_COBERTURA = build/toolchain/bin/gocover-cobertura$(EXE)
+TERRAFORM = $(REPOSITORY_ROOT)/build/toolchain/bin/terraform$(EXE)
+GOCOVER_COBERTURA = $(REPOSITORY_ROOT)/build/toolchain/bin/gocover-cobertura$(EXE)
 TOOLCHAIN = build/toolchain/bin/gocover-cobertura$(EXE) build/toolchain/bin/docker-compose$(EXE) build/toolchain/bin/terraform$(EXE) build/toolchain/bin/vizb$(EXE) $(PROTOC_TOOLCHAIN)
 
 GO_TEST_COUNT = 25
@@ -150,7 +150,7 @@ build/bin/%: $(ASSETS)
 run: cmd/example/example.go
 	$(GO) run cmd/example/example.go
 
-lint:
+lint: build/toolchain/bin/terraform$(EXE)
 	$(GO) fmt ./...
 	$(GO) vet ./...
 	(cd install/terraform; $(TERRAFORM) fmt .)
@@ -164,7 +164,7 @@ benchmark.html: $(TEST_ASSETS) build/toolchain/bin/vizb$(EXE)
 test: $(TEST_ASSETS)
 	$(GO) test -tags testing ${SOURCE_DIRS}
 
-tf-test: $(TEST_ASSETS)
+tf-test: build/toolchain/bin/terraform$(EXE) $(TEST_ASSETS)
 	(cd install/terraform/; $(TERRAFORM) init)
 	(cd install/terraform/; $(TERRAFORM) test)
 
