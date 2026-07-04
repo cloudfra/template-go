@@ -34,6 +34,7 @@ jobs:
             ./go.mod
             ./.git/*
             ./.cache/*
+            ./third_party/*
 
   # https://github.com/marketplace/actions/run-hadolint-with-reviewdog
   hadolint:
@@ -63,4 +64,7 @@ jobs:
       - name: codespell
         uses: codespell-project/actions-codespell@v2.2
         with:
-          skip: "./.git,./go.sum,./go.mod"
+          # third_party is vendored upstream proto sources we don't maintain;
+          # codespell's dictionary is broad enough to flag real typos in it
+          # that aren't ours to fix.
+          skip: "./.git,./go.sum,./go.mod,./third_party"
