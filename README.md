@@ -1,6 +1,9 @@
 # template-go
 
-![example workflow](https://github.com/cloudfra/example-go/actions/workflows/deploy.yml/badge.svg) [![Go Report Card](https://goreportcard.com/badge/github.com/cloudfra/example-go)](https://goreportcard.com/report/github.com/cloudfra/example-go) [![Go Reference](https://pkg.go.dev/badge/github.com/cloudfra/example-go.svg)](https://pkg.go.dev/github.com/cloudfra/example-go) [![codecov](https://codecov.io/gh/cloudfra/example-go/branch/main/graph/badge.svg)](https://codecov.io/gh/cloudfra/example-go)
+<!-- markdownlint-disable-next-line MD033 -->
+<img src="logo.png" alt="Logo" width="64" height="64" />
+
+[![CI](https://github.com/cloudfra/template-go/actions/workflows/deploy.yaml/badge.svg)](https://github.com/cloudfra/template-go/actions/workflows/deploy.yaml) [![Go Reference](https://pkg.go.dev/badge/github.com/cloudfra/example-go.svg)](https://pkg.go.dev/github.com/cloudfra/example-go) [![codecov](https://codecov.io/gh/cloudfra/template-go/graph/badge.svg?token=UVApxhg6z7)](https://codecov.io/gh/cloudfra/template-go)
 
 A starter template for Go projects at Cloudfra, wiring together a
 `make`-based build system, cross-platform binaries, Docker images,
