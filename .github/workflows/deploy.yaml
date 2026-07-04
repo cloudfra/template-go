@@ -33,7 +33,7 @@ jobs:
     permissions:
       contents: write
       packages: write
-      code-quality: write
+      checks: write
     timeout-minutes: 20
     steps:
       - name: Fix mod cache permissions
@@ -61,7 +61,7 @@ jobs:
           make clean
           make deps
           make lint
-          make deps tools -j$(nproc)
+          make deps tools -j"$(nproc)"
 
       - name: Terraform Test
         run: make tf-test || true
@@ -111,7 +111,7 @@ jobs:
           fail-on-error: false
 
       - name: Build Binaries
-        run: make all -j$(nproc)
+        run: make all -j"$(nproc)"
 
       - name: Release Package
         if: ${{ github.event_name != 'pull_request' }}

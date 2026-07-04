@@ -81,8 +81,8 @@ Infrastructure is managed with Terraform under `install/terraform`:
 ```bash
 cd install/terraform
 terraform init
-terraform plan -var=testing=true
-terraform apply -var=testing=true
+terraform plan -var=gcp_project_id=<your-project-id> -var=testing=true
+terraform apply -var=gcp_project_id=<your-project-id> -var=testing=true
 ```
 
 ## License

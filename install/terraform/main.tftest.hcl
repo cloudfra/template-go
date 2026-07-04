@@ -1,5 +1,5 @@
 variables {
-  bucket_prefix = "test"
+  gcp_project_id = "test-project"
 }
 
 run "plan" {

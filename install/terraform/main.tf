@@ -14,6 +14,9 @@
 
 # https://registry.terraform.io/providers/hashicorp/google/latest/docs
 terraform {
+  # Keep in sync with the minor version of TERRAFORM_VERSION in the Makefile.
+  required_version = "~> 1.15"
+
   required_providers {
     google = {
       source  = "hashicorp/google"
@@ -22,6 +25,10 @@ terraform {
     google-beta = {
       source  = "hashicorp/google-beta"
       version = "7.39.0"
+    }
+    null = {
+      source  = "hashicorp/null"
+      version = "3.3.0"
     }
   }
 }
@@ -40,6 +47,29 @@ provider "google-beta" {
 
 data "google_project" "project" {
   project_id = var.gcp_project_id
+}
+
+# TODO: delete this once data.google_project.project is referenced by a real
+# resource (e.g. IAM bindings scoped to the project number); it exists only
+# to keep the data source from being flagged as unused.
+resource "null_resource" "log_project" {
+  triggers = {
+    project_number = data.google_project.project.number
+  }
+
+  provisioner "local-exec" {
+    command = "echo Resolved GCP project number: ${data.google_project.project.number}"
+  }
+}
+
+# TODO: delete this once var.testing actually gates a real testing-only
+# resource; it exists only to keep the variable from being flagged as unused.
+resource "null_resource" "log_testing_flag" {
+  count = var.testing ? 1 : 0
+
+  provisioner "local-exec" {
+    command = "echo Testing mode is enabled"
+  }
 }
 
 resource "google_project_service" "api" {

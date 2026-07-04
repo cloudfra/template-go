@@ -18,10 +18,13 @@ include proto.mk
 DOCKERCOMPOSE_VERSION = 5.3.0
 # https://developer.hashicorp.com/terraform/install
 TERRAFORM_VERSION = 1.15.7
+# https://github.com/hadolint/hadolint/releases
+HADOLINT_VERSION = 2.14.0
 
 ifeq ($(OS),Windows_NT)
 	DOCKERCOMPOSE_PACKAGE = https://github.com/docker/compose/releases/download/v$(DOCKERCOMPOSE_VERSION)/docker-compose-windows-x86_64.exe
 	TERRAFORM_PACKAGE = https://releases.hashicorp.com/terraform/$(TERRAFORM_VERSION)/terraform_$(TERRAFORM_VERSION)_windows_amd64.zip
+	HADOLINT_PACKAGE = https://github.com/hadolint/hadolint/releases/download/v$(HADOLINT_VERSION)/hadolint-windows-x86_64.exe
 else
 	UNAME_S := $(shell uname -s)
 	UNAME_ARCH := $(shell uname -m)
@@ -29,14 +32,17 @@ else
 		ifeq ($(UNAME_ARCH),arm)
 			DOCKERCOMPOSE_PACKAGE = https://github.com/docker/compose/releases/download/v$(DOCKERCOMPOSE_VERSION)/docker-compose-linux-aarch64
 			TERRAFORM_PACKAGE = https://releases.hashicorp.com/terraform/$(TERRAFORM_VERSION)/terraform_$(TERRAFORM_VERSION)_linux_arm64.zip
+			HADOLINT_PACKAGE = https://github.com/hadolint/hadolint/releases/download/v$(HADOLINT_VERSION)/hadolint-linux-arm64
 		else
 			DOCKERCOMPOSE_PACKAGE = https://github.com/docker/compose/releases/download/v$(DOCKERCOMPOSE_VERSION)/docker-compose-linux-x86_64
 			TERRAFORM_PACKAGE = https://releases.hashicorp.com/terraform/$(TERRAFORM_VERSION)/terraform_$(TERRAFORM_VERSION)_linux_amd64.zip
+			HADOLINT_PACKAGE = https://github.com/hadolint/hadolint/releases/download/v$(HADOLINT_VERSION)/hadolint-linux-x86_64
 		endif
 	endif
 	ifeq ($(UNAME_S),Darwin)
 		DOCKERCOMPOSE_PACKAGE = https://github.com/docker/compose/releases/download/v$(DOCKERCOMPOSE_VERSION)/docker-compose-darwin-aarch64
 		TERRAFORM_PACKAGE = https://releases.hashicorp.com/terraform/$(TERRAFORM_VERSION)/terraform_$(TERRAFORM_VERSION)_darwin_arm64.zip
+		HADOLINT_PACKAGE = https://github.com/hadolint/hadolint/releases/download/v$(HADOLINT_VERSION)/hadolint-macos-arm64
 	endif
 endif
 
@@ -138,6 +144,37 @@ build/toolchain/bin/gocover-cobertura$(EXE):
 	mkdir -p $(dir $@)
 	GOBIN=$(dir $(REPOSITORY_ROOT)/$@) $(GO_WITH_PROXY) install github.com/t-yuki/gocover-cobertura@latest
 
+# golangci-lint's own default config (errcheck, govet, ineffassign,
+# staticcheck, unused) already covers what a standalone staticcheck run
+# would, so it's the only Go correctness linter wired into `lint`.
+build/toolchain/bin/golangci-lint$(EXE):
+	mkdir -p $(dir $@)
+	GOBIN=$(dir $(REPOSITORY_ROOT)/$@) $(GO_WITH_PROXY) install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@latest
+
+# Stricter formatting than `go fmt` (gofmt superset).
+build/toolchain/bin/gofumpt$(EXE):
+	mkdir -p $(dir $@)
+	GOBIN=$(dir $(REPOSITORY_ROOT)/$@) $(GO_WITH_PROXY) install mvdan.cc/gofumpt@latest
+
+# Style/doc-comment linter; not covered by golangci-lint's default config.
+build/toolchain/bin/revive$(EXE):
+	mkdir -p $(dir $@)
+	GOBIN=$(dir $(REPOSITORY_ROOT)/$@) $(GO_WITH_PROXY) install github.com/mgechev/revive@latest
+
+build/toolchain/bin/tflint$(EXE):
+	mkdir -p $(dir $@)
+	GOBIN=$(dir $(REPOSITORY_ROOT)/$@) $(GO_WITH_PROXY) install github.com/terraform-linters/tflint@latest
+
+build/toolchain/bin/actionlint$(EXE):
+	mkdir -p $(dir $@)
+	GOBIN=$(dir $(REPOSITORY_ROOT)/$@) $(GO_WITH_PROXY) install github.com/rhysd/actionlint/cmd/actionlint@latest
+
+# Not a Go module, so it's fetched as a prebuilt binary like terraform/docker-compose above.
+build/toolchain/bin/hadolint$(EXE):
+	mkdir -p $(TOOLCHAIN_BIN)
+	$(CURL) -o $@ -L $(HADOLINT_PACKAGE)
+	chmod +x $@
+
 build/bin/%: $(ASSETS)
 	GOOS=$(word 3, $(subst /, ,$(dir $@))) GOARCH=$(word 4, $(subst /, ,$(dir $@))) GOARM=$(subst v,,$(word 5, $(subst /, ,$(dir $@)))) CGO_ENABLED=0 $(GO) build -ldflags="-X 'github.com/cloudfra/template-go/internal.version=$(VERSION)' -X 'github.com/cloudfra/template-go/internal.buildstamp=$(BUILD_DATE)'" -o $@ cmd/$(basename $(notdir $@))/$(basename $(notdir $@)).go
 	touch $@
@@ -145,10 +182,17 @@ build/bin/%: $(ASSETS)
 run: cmd/example/example.go
 	$(GO) run cmd/example/example.go
 
-lint: build/toolchain/bin/terraform$(EXE)
+lint: build/toolchain/bin/terraform$(EXE) build/toolchain/bin/golangci-lint$(EXE) build/toolchain/bin/gofumpt$(EXE) build/toolchain/bin/revive$(EXE) build/toolchain/bin/tflint$(EXE) build/toolchain/bin/actionlint$(EXE) build/toolchain/bin/hadolint$(EXE)
 	$(GO) fmt ./...
 	$(GO) vet ./...
+	build/toolchain/bin/gofumpt$(EXE) -l -w .
+	build/toolchain/bin/golangci-lint$(EXE) run ./...
+	build/toolchain/bin/revive$(EXE) -set_exit_status ./...
+	$(FIND) cmd -iname 'Dockerfile*' -exec build/toolchain/bin/hadolint$(EXE) {} +
+	build/toolchain/bin/actionlint$(EXE)
 	(cd install/terraform; $(TERRAFORM) fmt .)
+	build/toolchain/bin/tflint$(EXE) --init --chdir install/terraform
+	build/toolchain/bin/tflint$(EXE) --chdir install/terraform
 
 bench: $(TEST_ASSETS)
 	$(GO) test -bench=. -benchmem -tags testing ${SOURCE_DIRS}
