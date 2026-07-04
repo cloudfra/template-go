@@ -64,7 +64,7 @@ jobs:
           make deps tools -j$(nproc)
 
       - name: Terraform Test
-        run: make tf-test || true
+        run: make tf-test
 
       - name: Test
         run: make test
