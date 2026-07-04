@@ -192,21 +192,21 @@ jobs:
       - name: Push Images (Commit)
         if: ${{ !startsWith(github.ref, 'refs/tags/') && github.event_name != 'pull_request' }}
         run: |
-          make REGISTRY=docker.io/cloudfra images
+          make REGISTRY=docker.io/cloudfra docker-images
           make build/packages/release.tar.gz
 
       - name: Push Images (Release)
         if: startsWith(github.ref, 'refs/tags/')
         run: |
-          make DOCKER_PUSH=--push REGISTRY=docker.io/cloudfra images
-          make DOCKER_PUSH=--push REGISTRY=ghcr.io/cloudfra images
+          make DOCKER_PUSH=--push REGISTRY=docker.io/cloudfra docker-images
+          make DOCKER_PUSH=--push REGISTRY=ghcr.io/cloudfra docker-images
           make build/packages/release.tar.gz
 
       - name: Push Images (Latest)
         if: startsWith(github.ref, 'refs/tags/') && !contains(github.ref, '-')
         run: |
-          make DOCKER_PUSH=--push REGISTRY=docker.io/cloudfra images
-          make DOCKER_PUSH=--push REGISTRY=ghcr.io/cloudfra images
+          make DOCKER_PUSH=--push REGISTRY=docker.io/cloudfra docker-images
+          make DOCKER_PUSH=--push REGISTRY=ghcr.io/cloudfra docker-images
 
   build-windows:
     name: "Build Windows"
