@@ -90,6 +90,8 @@ ALL_PLATFORMS = $(LINUX_PLATFORMS) $(WINDOWS_PLATFORMS) $(NICHE_PLATFORMS)
 MAIN_BINARIES = $(foreach app,$(ALL_APPS),$(foreach platform,$(MAIN_PLATFORMS),build/bin/$(platform)/$(app)$(if $(findstring windows,$(platform)),.exe,)))
 WINDOWS_BINARIES = $(foreach app,$(ALL_APPS),$(foreach platform,$(WINDOWS_PLATFORMS),build/bin/$(platform)/$(app)$(if $(findstring windows,$(platform)),.exe,)))
 ALL_BINARIES = $(foreach app,$(ALL_APPS),$(foreach platform,$(ALL_PLATFORMS),build/bin/$(platform)/$(app)$(if $(findstring windows,$(platform)),.exe,)))
+CODESIGN_CERT ?= build/certs/codesign.crt
+CODESIGN_KEY ?= build/certs/codesign.key
 RELEASE_BINARIES = $(foreach app,$(ALL_APPS),$(foreach platform,$(ALL_PLATFORMS),build/release/$(app)-$(subst /,_,$(platform))$(if $(findstring windows,$(platform)),.exe,)))
 
 WINDOWS_VERSIONS = 1709 1803 1809 1903 1909 2004 20H2 ltsc2022 ltsc2025
@@ -144,6 +146,12 @@ build/toolchain/bin/certtool$(EXE):
 	mkdir -p $(TOOLCHAIN_BIN)
 	$(CURL) -Lo $@ $(CERTTOOL_PACKAGE)
 	chmod +x $@
+
+ifeq ($(CODESIGN_CERT),build/certs/codesign.crt)
+build/certs/codesign.crt build/certs/codesign.key: build/toolchain/bin/certtool$(EXE)
+	mkdir -p $(dir $(CODESIGN_CERT))
+	$(TOOLCHAIN_BIN)/certtool$(EXE) --code-sign --target=linux --public-certificate=$(CODESIGN_CERT) --private-key=$(CODESIGN_KEY)
+endif
 
 build/toolchain/bin/gocover-cobertura$(EXE):
 	mkdir -p $(dir $@)
