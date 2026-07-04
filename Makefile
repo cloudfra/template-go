@@ -147,8 +147,8 @@ build/toolchain/bin/certtool$(EXE):
 	$(CURL) -Lo $@ $(CERTTOOL_PACKAGE)
 	chmod +x $@
 
-ifeq ($(CODESIGN_CERT),build/certs/codesign.crt)
-build/certs/codesign.crt build/certs/codesign.key: build/toolchain/bin/certtool$(EXE)
+ifeq ($(CODESIGN_CERT)|$(CODESIGN_KEY),build/certs/codesign.crt|build/certs/codesign.key)
+build/certs/codesign.crt build/certs/codesign.key &: build/toolchain/bin/certtool$(EXE)
 	mkdir -p $(dir $(CODESIGN_CERT))
 	$(TOOLCHAIN_BIN)/certtool$(EXE) --code-sign --target=linux --public-certificate=$(CODESIGN_CERT) --private-key=$(CODESIGN_KEY)
 endif
