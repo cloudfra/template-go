@@ -99,6 +99,10 @@ BUILDX_BUILDER = buildx-builder
 # create`/`annotate` can't reference into a nested index, which breaks the
 # per-platform tags merged by the `images` target below.
 DOCKER_EXTRA_FLAGS = --builder $(BUILDX_BUILDER) --provenance=false --sbom=false
+# Both Dockerfiles declare BUILD_DATE/BUILD_TIME/VCS_REF/BUILD_VERSION build-args
+# for their OCI/label-schema LABELs; without these, every image ships with
+# empty version/created/vcs-ref labels.
+DOCKER_LABEL_ARGS = --build-arg BUILD_DATE=$(BUILD_DATE) --build-arg BUILD_TIME=$(BUILD_DATE) --build-arg VCS_REF=$(SHORT_SHA) --build-arg BUILD_VERSION=$(VERSION)
 
 all: $(ALL_BINARIES)
 tools: $(TOOLCHAIN)
@@ -257,7 +261,7 @@ ensure-builder:
 ALL_DOCKER_IMAGES = $(foreach app,$(ALL_APPS),docker-image-$(app))
 docker-images: $(ALL_DOCKER_IMAGES)
 docker-image-%: build/bin/linux/amd64/% ensure-builder
-	$(DOCKER) buildx build $(DOCKER_EXTRA_FLAGS) --platform linux/amd64 -f cmd/$*/Dockerfile -t $(REGISTRY)/$*:$(TAG) . $(DOCKER_PUSH)
+	$(DOCKER) buildx build $(DOCKER_EXTRA_FLAGS) --platform linux/amd64 --build-arg BINARY_PATH=$< $(DOCKER_LABEL_ARGS) --build-arg BINARY_NAME=$* -f cmd/$*/Dockerfile -t $(REGISTRY)/$*:$(TAG) . $(DOCKER_PUSH)
 
 
 ALL_IMAGES = $(foreach app,$(ALL_APPS),$(REGISTRY)/$(app))
@@ -274,7 +278,7 @@ images: linux-images windows-images
 	done
 
 example-image: build/bin/linux/amd64/example
-	$(DOCKER) build --build-arg BINARY_PATH=$< -f cmd/example/Dockerfile -t $(REGISTRY)/example:localtest .
+	$(DOCKER) build --build-arg BINARY_PATH=$< $(DOCKER_LABEL_ARGS) --build-arg BINARY_NAME=example -f cmd/example/Dockerfile -t $(REGISTRY)/example:localtest .
 
 .SECONDEXPANSION:
 
@@ -287,7 +291,7 @@ linux-images: $(ALL_LINUX_IMAGES)
 # portion would never match this rule. $(call platform,...)/$(call appname,...)
 # (defined near the bottom of this file) split the stem back apart.
 linux-image-%: build/bin/$$(subst _,/,$$(call platform,$$*))/$$(call appname,$$*) ensure-builder
-	$(DOCKER) buildx build $(DOCKER_EXTRA_FLAGS) --platform $(subst _,/,$(call platform,$*)) --build-arg BINARY_PATH=$< -f cmd/$(call appname,$*)/Dockerfile -t $(REGISTRY)/$(call appname,$*):$(TAG)-$(call platform,$*) . $(DOCKER_PUSH)
+	$(DOCKER) buildx build $(DOCKER_EXTRA_FLAGS) --platform $(subst _,/,$(call platform,$*)) --build-arg BINARY_PATH=$< $(DOCKER_LABEL_ARGS) --build-arg BINARY_NAME=$(call appname,$*) -f cmd/$(call appname,$*)/Dockerfile -t $(REGISTRY)/$(call appname,$*):$(TAG)-$(call platform,$*) . $(DOCKER_PUSH)
 
 ALL_WINDOWS_IMAGES = $(foreach app,$(ALL_APPS),$(foreach winver,$(WINDOWS_VERSIONS),windows-image-$(app)-$(winver)))
 windows-images: $(ALL_WINDOWS_IMAGES)
@@ -296,7 +300,7 @@ windows-images: $(ALL_WINDOWS_IMAGES)
 # platform/appname split even though the trailing token is a Windows version,
 # not an OS/arch pair.
 windows-image-%: build/bin/windows/amd64/$$(call appname,$$*).exe ensure-builder
-	$(DOCKER) buildx build $(DOCKER_EXTRA_FLAGS) --platform windows/amd64 --build-arg BINARY_PATH=$< -f cmd/$(call appname,$*)/Dockerfile.windows --build-arg WINDOWS_VERSION=$(call platform,$*) -t $(REGISTRY)/$(call appname,$*):$(TAG)-windows_amd64-$(call platform,$*) . $(DOCKER_PUSH)
+	$(DOCKER) buildx build $(DOCKER_EXTRA_FLAGS) --platform windows/amd64 --build-arg BINARY_PATH=$< $(DOCKER_LABEL_ARGS) --build-arg BINARY_NAME=$(call appname,$*) -f cmd/$(call appname,$*)/Dockerfile.windows --build-arg WINDOWS_VERSION=$(call platform,$*) -t $(REGISTRY)/$(call appname,$*):$(TAG)-windows_amd64-$(call platform,$*) . $(DOCKER_PUSH)
 
 .PHONY: all tools assets protos windows-binaries run lint bench test tf-test test-deflake ensure-builder docker-images images linux-images windows-images example-image upgrade-deps deps clean presubmit system-info
 .SECONDEXPANSION:

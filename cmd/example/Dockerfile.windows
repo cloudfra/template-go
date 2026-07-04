@@ -39,7 +39,7 @@ LABEL \
     org.opencontainers.image.documentation="https://github.com/cloudfra/example" \
     org.opencontainers.image.source="https://github.com/cloudfra/example" \
     org.opencontainers.image.version="${BUILD_VERSION}" \
-    org.opencontainers.image.revision="1" \
+    org.opencontainers.image.revision="${VCS_REF}" \
     org.opencontainers.image.vendor="Cloudfra" \
     org.opencontainers.image.licenses="Apache-2.0" \
     org.opencontainers.image.ref.name="" \
