@@ -204,7 +204,10 @@ test: $(TEST_ASSETS)
 	$(GO) test -tags testing ${SOURCE_DIRS}
 
 tf-test: build/toolchain/bin/terraform$(EXE) $(TEST_ASSETS)
-	(cd install/terraform/; $(TERRAFORM) init)
+	# -backend=false: main.tftest.hcl mocks the providers and never touches
+	# real state, so there's no need to configure the (real, per-environment)
+	# GCS backend just to run tests.
+	(cd install/terraform/; $(TERRAFORM) init -backend=false)
 	(cd install/terraform/; $(TERRAFORM) test)
 
 test-deflake: $(TEST_ASSETS)
