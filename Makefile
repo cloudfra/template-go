@@ -1,0 +1,220 @@
+# Copyright 2026 Cloudfra
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+include proto.mk
+
+# https://github.com/docker/compose/releases
+DOCKERCOMPOSE_VERSION = 5.3.0
+# https://developer.hashicorp.com/terraform/install
+TERRAFORM_VERSION = 1.15.7
+
+ifeq ($(OS),Windows_NT)
+	DOCKERCOMPOSE_PACKAGE = https://github.com/docker/compose/releases/download/v$(DOCKERCOMPOSE_VERSION)/docker-compose-windows-x86_64.exe
+	TERRAFORM_PACKAGE = https://releases.hashicorp.com/terraform/$(TERRAFORM_VERSION)/terraform_$(TERRAFORM_VERSION)_windows_amd64.zip
+	DEBUG_HOST=localhost
+else
+	DEBUG_HOST=
+	UNAME_S := $(shell uname -s)
+	UNAME_ARCH := $(shell uname -m)
+	ifeq ($(UNAME_S),Linux)
+		ifeq ($(UNAME_ARCH),arm)
+			DOCKERCOMPOSE_PACKAGE = https://github.com/docker/compose/releases/download/v$(DOCKERCOMPOSE_VERSION)/docker-compose-linux-aarch64
+			TERRAFORM_PACKAGE = https://releases.hashicorp.com/terraform/$(TERRAFORM_VERSION)/terraform_$(TERRAFORM_VERSION)_linux_arm64.zip
+		else
+			DOCKERCOMPOSE_PACKAGE = https://github.com/docker/compose/releases/download/v$(DOCKERCOMPOSE_VERSION)/docker-compose-linux-x86_64
+			TERRAFORM_PACKAGE = https://releases.hashicorp.com/terraform/$(TERRAFORM_VERSION)/terraform_$(TERRAFORM_VERSION)_linux_amd64.zip
+		endif
+	endif
+	ifeq ($(UNAME_S),Darwin)
+		DOCKERCOMPOSE_PACKAGE = https://github.com/docker/compose/releases/download/v$(DOCKERCOMPOSE_VERSION)/docker-compose-darwin-aarch64
+		TERRAFORM_PACKAGE = https://releases.hashicorp.com/terraform/$(TERRAFORM_VERSION)/terraform_$(TERRAFORM_VERSION)_darwin_arm64.zip
+	endif
+endif
+
+RELEASE_CHANNEL=canary
+GO_WITH_PROXY = go
+GO = GOPROXY=off go
+GO_RACE=-race
+DOCKER = docker
+TAR = tar
+GZIP = gzip
+
+SHORT_SHA = $(shell git rev-parse --short=7 HEAD | tr -d [:punct:])
+DIRTY_VERSION = v0.0.0-$(SHORT_SHA)
+VERSION = $(shell git describe --tags || (echo $(DIRTY_VERSION) && exit 1))
+BUILD_DATE = $(shell date -u +'%Y-%m-%dT%H:%M:%SZ')
+RUN_DATE = $(shell date -u +'%Y%m%d-%H-%M-%S')
+TAG := $(VERSION)
+
+export PATH := $(PWD)/build/toolchain/bin:$(PATH)
+GO = go
+SOURCE_DIRS=$(shell go list ./... | grep -v '/vendor/')
+
+REGISTRY = ghcr.io/cloudfra
+PROTOS = 
+TEST_ASSETS = 
+ASSETS = $(PROTOS)
+ALL_APPS = example
+
+comma := ,
+empty:=
+space := $(empty) $(empty)
+
+GCLOUD = gcloud --project $(GCP_PROJECT)
+TERRAFORM = terraform
+GOCOVER_COBERTURA = build/toolchain/bin/gocover-cobertura$(EXE)
+TOOLCHAIN = build/toolchain/bin/gocover-cobertura$(EXE) build/toolchain/bin/docker-compose$(EXE) build/toolchain/bin/terraform$(EXE) build/toolchain/bin/vizb$(EXE) $(PROTOC_TOOLCHAIN)
+
+GO_TEST_COUNT = 25
+
+LINUX_PLATFORMS = linux/386 linux/amd64 linux/arm/v5 linux/arm/v6 linux/arm/v7 linux/arm64 linux/loong64 linux/s390x linux/ppc64 linux/ppc64le linux/riscv64 linux/mips64le linux/mips linux/mipsle linux/mips64
+ANDROID_PLATFORMS = android/arm64 # android/386 android/amd64 android/arm android/arm/v5 android/arm/v6 android/arm/v7
+WINDOWS_PLATFORMS = windows/386 windows/amd64 windows/arm64 # windows/arm/v5 windows/arm/v6 windows/arm/v7
+MAIN_PLATFORMS = windows/amd64 linux/amd64 linux/arm64
+IOS_PLATFORMS = # ios/amd64 ios/arm64
+DARWIN_PLATFORMS = darwin/amd64 darwin/arm64
+DRAGONFLY_PLATFORMS = dragonfly/amd64
+FREEBSD_PLATFORMS = freebsd/386 freebsd/amd64 freebsd/arm/v5 freebsd/arm/v6 freebsd/arm/v7 freebsd/arm64
+NETBSD_PLATFORMS = netbsd/amd64 netbsd/arm64 netbsd/386 netbsd/arm/v5 netbsd/arm/v6 netbsd/arm/v7
+OPENBSD_PLATFORMS = openbsd/386 openbsd/amd64 openbsd/arm/v5 openbsd/arm/v6 openbsd/arm/v7 openbsd/arm64 # openbsd/mips64
+PLAN9_PLATFORMS = plan9/386 plan9/amd64 plan9/arm/v5 plan9/arm/v6 plan9/arm/v7
+SOLARIS_PLATFORMS = solaris/amd64
+NICHE_PLATFORMS = js/wasm illumos/amd64 aix/ppc64 $(ANDROID_PLATFORMS) $(DARWIN_PLATFORMS) $(IOS_PLATFORMS) $(DRAGONFLY_PLATFORMS) $(FREEBSD_PLATFORMS) $(NETBSD_PLATFORMS) $(OPENBSD_PLATFORMS) $(PLAN9_PLATFORMS) $(SOLARIS_PLATFORMS)
+ALL_PLATFORMS = $(LINUX_PLATFORMS) $(WINDOWS_PLATFORMS) $(NICHE_PLATFORMS)
+
+MAIN_BINARIES = $(foreach app,$(ALL_APPS),$(foreach platform,$(MAIN_PLATFORMS),build/bin/$(platform)/$(app)$(if $(findstring windows,$(platform)),.exe,)))
+WINDOWS_BINARIES = $(foreach app,$(ALL_APPS),$(foreach platform,$(WINDOWS_PLATFORMS),build/bin/$(platform)/$(app)$(if $(findstring windows,$(platform)),.exe,)))
+ALL_BINARIES = $(foreach app,$(ALL_APPS),$(foreach platform,$(ALL_PLATFORMS),build/bin/$(platform)/$(app)$(if $(findstring windows,$(platform)),.exe,)))
+
+WINDOWS_VERSIONS = 1709 1803 1809 1903 1909 2004 20H2 ltsc2022 ltsc2025
+BUILDX_BUILDER = buildx-builder
+DOCKER_EXTRA_FLAGS = --builder $(BUILDX_BUILDER)
+
+all: $(ALL_BINARIES)
+tools: $(TOOLCHAIN)
+assets: $(ASSETS)
+protos: $(PROTOS)
+windows-binaries: $(WINDOWS_BINARIES)
+
+build/packages/%-binaries.zip: $(ALL_BINARIES)
+	mkdir -p $(dir $@)
+	(cd build/bin/$*/; zip -qr9 $(REPOSITORY_ROOT)/$@ *)
+	touch $(REPOSITORY_ROOT)/$@
+
+build/packages/release.tar.gz: $(ALL_BINARIES)
+	mkdir -p $(dir $@)
+	cd build/bin/; $(TAR) -cvf - * | gzip -9 - > $(REPOSITORY_ROOT)/$@
+	# tar -tf $(REPOSITORY_ROOT)/$@
+
+build/toolchain/bin/vizb$(EXE):
+	# https://github.com/goptics/vizb
+	GOBIN=$(TOOLCHAIN_BIN) $(GO_WITH_PROXY) install github.com/goptics/vizb@latest
+
+build/archives/terraform.zip:
+	mkdir -p $(ARCHIVES_DIR)/
+	$(FX_CURL) -o $(ARCHIVES_DIR)/terraform.zip -L $(TERRAFORM_PACKAGE)
+	touch $@
+
+build/toolchain/bin/terraform$(EXE): build/archives/terraform.zip
+	mkdir -p $(TOOLCHAIN_BIN)
+	mkdir -p $(TOOLCHAIN_DIR)/terraform-temp/
+	cp $(ARCHIVES_DIR)/terraform.zip $(TOOLCHAIN_DIR)/terraform-temp/
+	(cd $(TOOLCHAIN_DIR)/terraform-temp/ && unzip -q -j terraform.zip)
+	cp $(TOOLCHAIN_DIR)/terraform-temp/terraform$(EXE) $(TOOLCHAIN_BIN)/terraform$(EXE)
+	rm -rf $(TOOLCHAIN_DIR)/terraform-temp/
+
+build/toolchain/bin/docker-compose$(EXE):
+	mkdir -p $(TOOLCHAIN_BIN)
+	curl -Lo $@ $(DOCKERCOMPOSE_PACKAGE)
+	chmod +x $@
+
+build/toolchain/bin/gocover-cobertura$(EXE):
+	mkdir -p $(dir $@)
+	GOBIN=$(dir $(REPOSITORY_ROOT)/$@) $(GO) install github.com/t-yuki/gocover-cobertura@latest
+
+build/bin/%: $(ASSETS)
+	GOOS=$(word 3, $(subst /, ,$(dir $@))) GOARCH=$(word 4, $(subst /, ,$(dir $@))) GOARM=$(subst v,,$(word 5, $(subst /, ,$(dir $@)))) CGO_ENABLED=0 $(GO) build -ldflags="-X 'github.com/cloudfra/template-go/internal.version=$(VERSION)' -X 'github.com/cloudfra/template-go/internal.buildstamp=$(BUILD_DATE)'" -o $@ cmd/$(basename $(notdir $@))/$(basename $(notdir $@)).go
+	touch $@
+
+run: cmd/example/example.go
+	$(GO) run cmd/example/example.go
+
+lint:
+	$(GO) fmt ./...
+	$(GO) vet ./...
+	(cd install/terraform; $(TERRAFORM) fmt .)
+
+bench: $(TEST_ASSETS)
+	$(GO) test -bench=. -benchmem -tags testing ${SOURCE_DIRS}
+
+benchmark.html: $(TEST_ASSETS) build/toolchain/bin/vizb$(EXE)
+	$(GO) test -json -bench=. -benchmem -tags testing ${SOURCE_DIRS} | build/toolchain/bin/vizb$(EXE) -o benchmark.html
+
+test: $(TEST_ASSETS)
+	$(GO) test -tags testing ${SOURCE_DIRS}
+
+tf-test: $(TEST_ASSETS)
+	(cd install/terraform/; $(TERRAFORM) init)
+	(cd install/terraform/; $(TERRAFORM) test)
+
+test-deflake: $(TEST_ASSETS)
+	CGO_ENABLED=1 $(GO) test -tags testing $(GO_RACE) ${SOURCE_DIRS} -cover -count $(GO_TEST_COUNT) -test.short
+
+coverage.txt: $(ASSETS)
+	for sfile in ${SOURCE_DIRS} ; do \
+		go test -race "$$sfile" -coverprofile=package.coverage -covermode=atomic; \
+		if [ -f package.coverage ]; then \
+			cat package.coverage >> coverage.txt; \
+			$(RM) package.coverage; \
+		fi; \
+	done; \
+	sed -i '2,$${/mode: /d;}' $@
+
+coverage.xml: coverage.txt build/toolchain/bin/gocover-cobertura$(EXE)
+	$(REPOSITORY_ROOT)/build/toolchain/bin/gocover-cobertura$(EXE) < $< > $@
+
+ensure-builder:
+	-$(DOCKER) buildx create --name $(BUILDX_BUILDER)
+
+ALL_DOCKER_IMAGES = $(foreach app,$(ALL_APPS),docker-image-$(app))
+docker-images: $(ALL_DOCKER_IMAGES)
+docker-image-%: build/bin/linux/amd64/% ensure-builder
+	$(DOCKER) buildx build $(DOCKER_EXTRA_FLAGS) --platform linux/amd64 -f cmd/$*/Dockerfile -t $(REGISTRY)/$*:$(TAG) . $(DOCKER_PUSH)
+
+upgrade-deps:
+	$(GO_WITH_PROXY) get -u ./...
+	$(GO_WITH_PROXY) mod tidy
+
+deps:
+	$(GO_WITH_PROXY) mod download
+
+clean:
+	rm -f coverage.txt
+	-chmod -R +w build/
+	rm -rf build/
+	rm -rf output/
+
+presubmit: tools lint all test-deflake
+
+system-info:
+	@echo "Number of Processors"
+	@echo "$(shell nproc)"
+	@echo ""
+	@echo "Kernel Version"
+	@uname -a
+	@echo ""
+	@echo "Storage Metrics"
+	@df -h
+
+.PHONY: all tools assets protos windows-binaries run lint bench test tf-test test-deflake ensure-builder docker-images upgrade-deps deps clean presubmit system-info
