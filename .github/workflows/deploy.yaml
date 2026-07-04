@@ -27,10 +27,10 @@ jobs:
   # Set the job key. The key is displayed as the job name
   # when a job name is not provided
   build-linux:
-    name: Push Images
+    name: "Build Linux"
     runs-on: ["self-hosted", "linux", "large"]
-    container:
-      image: docker.io/cloudfra/ci-core:canary # Maybe
+ #   container:
+    #  image: docker.io/cloudfra/ci-core:canary # Maybe
     permissions:
       contents: write
       packages: write
@@ -38,8 +38,7 @@ jobs:
     timeout-minutes: 20
     steps:
       - name: System Information
-        run: |
-          make system-info
+        run: make system-info
 
       - name: Checkout code
         # https://github.com/actions/checkout
@@ -200,6 +199,7 @@ jobs:
           make DOCKER_PUSH=--push REGISTRY=docker.io/cloudfra images
           make DOCKER_PUSH=--push REGISTRY=ghcr.io/cloudfra images
   build-windows:
+    name: "Build Windows"
     runs-on: ["self-hosted", "windows"]
     steps:
       - name: Checkout
@@ -209,8 +209,7 @@ jobs:
         with:
           go-version: stable
           cache: false
-      - name: Test Assets
-        run: make testassets archiveassets
+
       - name: Build
         run: make windows-binaries -j4
       - name: Test
