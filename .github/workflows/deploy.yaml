@@ -50,8 +50,8 @@ jobs:
       - name: System Information
         run: make system-info
 
-      - name: Container Fix
-        run: git config --system --add safe.directory /__w/
+      # - name: Container Fix
+      #   run: git config --system --add safe.directory /__w/
 
       - name: Prepare Build
         run: |
