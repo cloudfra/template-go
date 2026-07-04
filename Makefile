@@ -96,6 +96,7 @@ ALL_PLATFORMS = $(LINUX_PLATFORMS) $(WINDOWS_PLATFORMS) $(NICHE_PLATFORMS)
 MAIN_BINARIES = $(foreach app,$(ALL_APPS),$(foreach platform,$(MAIN_PLATFORMS),build/bin/$(platform)/$(app)$(if $(findstring windows,$(platform)),.exe,)))
 WINDOWS_BINARIES = $(foreach app,$(ALL_APPS),$(foreach platform,$(WINDOWS_PLATFORMS),build/bin/$(platform)/$(app)$(if $(findstring windows,$(platform)),.exe,)))
 ALL_BINARIES = $(foreach app,$(ALL_APPS),$(foreach platform,$(ALL_PLATFORMS),build/bin/$(platform)/$(app)$(if $(findstring windows,$(platform)),.exe,)))
+RELEASE_BINARIES = $(foreach app,$(ALL_APPS),$(foreach platform,$(ALL_PLATFORMS),build/release/$(app)-$(subst /,_,$(platform))$(if $(findstring windows,$(platform)),.exe,)))
 
 WINDOWS_VERSIONS = 1709 1803 1809 1903 1909 2004 20H2 ltsc2022 ltsc2025
 BUILDX_BUILDER = buildx-builder
@@ -112,10 +113,12 @@ build/packages/%-binaries.zip: $(ALL_BINARIES)
 	(cd build/bin/$*/; zip -qr9 $(REPOSITORY_ROOT)/$@ *)
 	touch $(REPOSITORY_ROOT)/$@
 
+release-binaries: $(RELEASE_BINARIES)
+
 build/packages/release.tar.gz: $(ALL_BINARIES)
 	mkdir -p $(dir $@)
 	cd build/bin/; $(TAR) -cvf - * | gzip -9 - > $(REPOSITORY_ROOT)/$@
-	# tar -tf $(REPOSITORY_ROOT)/$@
+	touch $(REPOSITORY_ROOT)/$@
 
 build/toolchain/bin/vizb$(EXE):
 	# https://github.com/goptics/vizb
@@ -218,3 +221,16 @@ system-info:
 	@df -h
 
 .PHONY: all tools assets protos windows-binaries run lint bench test tf-test test-deflake ensure-builder docker-images upgrade-deps deps clean presubmit system-info
+.SECONDEXPANSION:
+
+# "appname-linux_arm_v5" -> "linux_arm_v5"
+platform = $(lastword $(subst -, ,$(basename $(1))))
+# strip "-<platform>" to recover app name (hyphen-safe)
+appname  = $(patsubst %-$(call platform,$(1)),%,$(basename $(1)))
+# source path: build/bin/linux/arm/v5/appname (no extension on sources)
+rel2bin  = build/bin/$(subst _,/,$(call platform,$(1)))/$(call appname,$(1))$(if $(findstring windows,$(platform)),.exe,)
+
+build/release/%: $$(call rel2bin,$$*)
+	@mkdir -p $(@D)
+	cp $< $@
+	touch $@
