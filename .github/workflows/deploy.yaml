@@ -60,17 +60,30 @@ jobs:
           make lint
           make deps tools -j$(nproc)
 
-      - name: Test
-        run: |
-          make test
-          make bench
-          make coverage.txt coverage.xml
-
       - name: Terraform Test
         run: make tf-test || true
 
+      - name: Test
+        run: make test
+
       - name: Test (Deflake)
         run: make test-deflake
+
+      - name: Coverage
+        run: make coverage.txt coverage.xml
+
+      - name: Benchmark
+        run: make benchmark.html
+      
+      - name: Publish Benchmark (7 Days)
+        # https://github.com/actions/upload-artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: benchmark-linux.html
+          path: |
+            benchmark.html
+          retention-days: 7
+          if-no-files-found: error
 
       - name: Push Code Coverage
         # https://github.com/codecov/codecov-action
@@ -211,7 +224,22 @@ jobs:
 
       - name: Build
         run: make windows-binaries -j4
+
       - name: Test
         run: make test
+
       - name: Test (Race Test)
         run: make GO_TEST_COUNT=5 test-deflake
+
+      - name: Benchmark
+        run: make benchmark.html
+      
+      - name: Publish Benchmark (7 Days)
+        # https://github.com/actions/upload-artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: benchmark-windows.html
+          path: |
+            benchmark.html
+          retention-days: 7
+          if-no-files-found: error
