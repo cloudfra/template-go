@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Command example is the starter CLI entry point new services should replace.
 package main
 
 import (
@@ -22,9 +23,7 @@ import (
 	"github.com/cloudfra/template-go/internal/example"
 )
 
-var (
-	fileFlag = flag.String("file", "", "Input File")
-)
+var fileFlag = flag.String("file", "", "Input File")
 
 func main() {
 	if err := example.Run(example.Args{

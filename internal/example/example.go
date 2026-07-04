@@ -12,7 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package example is the starter implementation new services should replace.
 package example
+
+import "log"
 
 // Args holds the inputs for Run.
 type Args struct {
@@ -22,5 +25,6 @@ type Args struct {
 
 // Run executes the example application logic.
 func Run(args Args) error {
+	log.Printf("Running example with file: %s", args.File)
 	return nil
 }
