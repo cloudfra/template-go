@@ -15,15 +15,15 @@
 # https://github.com/protocolbuffers/protobuf/releases
 PROTOC_VERSION = 35.1
 
-EXE = 
-FX_FIND = find
+EXE =
+FIND = find
 
 ifeq ($(OS),Windows_NT)
 	HOST_OS = windows
 	HOST_PLATFORM = windows_amd64
 	HOST_ARCH = amd64
 	# Give priority to /usr/bin because it conflicts with C:\Windows\system32 within Msys32 environment.
-	FX_FIND = /usr/bin/find.exe
+	FIND = /usr/bin/find.exe
 	EXE = .exe
 	SED_REPLACE = sed -i
 	PROTOC_PACKAGE = https://github.com/protocolbuffers/protobuf/releases/download/v$(PROTOC_VERSION)/protoc-$(PROTOC_VERSION)-win64.zip
@@ -51,16 +51,18 @@ else
 	endif
 endif
 
-REPOSITORY_ROOT := $(patsubst %/,%,$(dir $(abspath fx.mk)))
+# Directory containing this makefile (i.e. the repository root), regardless
+# of where `make` is invoked from.
+REPOSITORY_ROOT := $(patsubst %/,%,$(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
 BUILD_DIR = $(REPOSITORY_ROOT)/build
 ARCHIVES_DIR = $(BUILD_DIR)/archives
 TOOLCHAIN_DIR = $(BUILD_DIR)/toolchain
 TOOLCHAIN_BIN = $(TOOLCHAIN_DIR)/bin
 THIRDPARTY_DIR = $(REPOSITORY_ROOT)/third_party
 
-FX_GO = GO111MODULE=on go
-FX_GO_INSTALL = GOPATH=$(TOOLCHAIN_DIR) $(FX_GO) install
-FX_CURL = curl --retry 5 --retry-connrefused
+PROTOC_GO = GO111MODULE=on go
+PROTOC_GO_INSTALL = GOPATH=$(TOOLCHAIN_DIR) $(PROTOC_GO) install
+CURL = curl --retry 5 --retry-connrefused
 PROTOC := GOPATH=$(TOOLCHAIN_DIR) $(TOOLCHAIN_BIN)/protoc
 PROTOC_INCLUDE_FLAGS = -I $(REPOSITORY_ROOT) -I $(THIRDPARTY_DIR)/grpc_gateway/include/ -I $(THIRDPARTY_DIR)/google_protobuf/include/
 
@@ -75,7 +77,7 @@ build/toolchain/bin: $(PROTOC_TOOLCHAIN)
 
 build/archives/protoc.zip:
 	mkdir -p $(ARCHIVES_DIR)/
-	$(FX_CURL) -o $(ARCHIVES_DIR)/protoc.zip -L $(PROTOC_PACKAGE)
+	$(CURL) -o $(ARCHIVES_DIR)/protoc.zip -L $(PROTOC_PACKAGE)
 	touch $@
 
 build/toolchain/bin/protoc$(EXE): build/archives/protoc.zip
@@ -89,32 +91,32 @@ build/toolchain/bin/protoc$(EXE): build/archives/protoc.zip
 
 build/toolchain/bin/protoc-gen-go$(EXE): third_party/google_protobuf/include/google/LICENSE third_party/grpc_gateway/include/protoc-gen-openapiv2/LICENSE
 	mkdir -p $(TOOLCHAIN_BIN)/
-	cd $(TOOLCHAIN_BIN) && $(FX_GO_INSTALL) google.golang.org/protobuf/cmd/protoc-gen-go@latest
+	cd $(TOOLCHAIN_BIN) && $(PROTOC_GO_INSTALL) google.golang.org/protobuf/cmd/protoc-gen-go@latest
 	touch $@
 
 build/toolchain/bin/protoc-gen-go-grpc$(EXE): third_party/google_protobuf/include/google/LICENSE third_party/grpc_gateway/include/protoc-gen-openapiv2/LICENSE
 	mkdir -p $(TOOLCHAIN_BIN)/
-	cd $(TOOLCHAIN_BIN) && $(FX_GO_INSTALL) google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
+	cd $(TOOLCHAIN_BIN) && $(PROTOC_GO_INSTALL) google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
 	touch $@
 
 build/toolchain/bin/protoc-gen-grpc-gateway$(EXE): third_party/google_protobuf/include/google/LICENSE third_party/grpc_gateway/include/protoc-gen-openapiv2/LICENSE
-	cd $(TOOLCHAIN_BIN) && $(FX_GO_INSTALL) github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-grpc-gateway@latest
+	cd $(TOOLCHAIN_BIN) && $(PROTOC_GO_INSTALL) github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-grpc-gateway@latest
 	touch $@
 
 build/toolchain/bin/protoc-gen-openapiv2$(EXE): third_party/google_protobuf/include/google/LICENSE third_party/grpc_gateway/include/protoc-gen-openapiv2/LICENSE
 	mkdir -p $(TOOLCHAIN_BIN)/
-	cd $(TOOLCHAIN_BIN) && $(FX_GO_INSTALL) github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-openapiv2@latest
+	cd $(TOOLCHAIN_BIN) && $(PROTOC_GO_INSTALL) github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-openapiv2@latest
 	touch $@
 
 build/archives/googleapis.zip:
 	mkdir -p $(ARCHIVES_DIR)/
-	$(FX_CURL) -o $(ARCHIVES_DIR)/googleapis.zip -L \
+	$(CURL) -o $(ARCHIVES_DIR)/googleapis.zip -L \
 		https://github.com/googleapis/googleapis/archive/master.zip
 	touch $@
 
 build/archives/grpc-gateway.zip:
 	mkdir -p $(ARCHIVES_DIR)/
-	$(FX_CURL) -o $(ARCHIVES_DIR)/grpc-gateway.zip -L \
+	$(CURL) -o $(ARCHIVES_DIR)/grpc-gateway.zip -L \
 		https://github.com/grpc-ecosystem/grpc-gateway/archive/master.zip
 	touch $@
 
@@ -146,7 +148,7 @@ third_party/google_protobuf/include/google/LICENSE: build/archives/protoc.zip bu
 		$(THIRDPARTY_DIR)/google_protobuf/include/google/longrunning/
 	cp -f $(TOOLCHAIN_DIR)/googleapis-temp/googleapis-master/LICENSE \
 		$(THIRDPARTY_DIR)/google_protobuf/include/google/LICENSE
-	$(FX_FIND) $(THIRDPARTY_DIR)/google_protobuf/include/google/ -type f -name '*BUILD.bazel' -exec rm {} +
+	$(FIND) $(THIRDPARTY_DIR)/google_protobuf/include/google/ -type f -name '*BUILD.bazel' -exec rm {} +
 	rm -rf $(TOOLCHAIN_DIR)/googleapis-temp
 	touch $@
 
@@ -165,7 +167,7 @@ third_party/grpc_gateway/include/protoc-gen-openapiv2/LICENSE: build/archives/gr
 		$(THIRDPARTY_DIR)/grpc_gateway/include/protoc-gen-openapiv2/options/
 	cp -f $(TOOLCHAIN_DIR)/grpc-gateway-temp/grpc-gateway-main/LICENSE \
 		$(THIRDPARTY_DIR)/grpc_gateway/include/protoc-gen-openapiv2/LICENSE
-	$(FX_FIND) $(THIRDPARTY_DIR)/grpc_gateway/include/protoc-gen-openapiv2/ -type f -name '*BUILD.bazel' -exec rm {} +
+	$(FIND) $(THIRDPARTY_DIR)/grpc_gateway/include/protoc-gen-openapiv2/ -type f -name '*BUILD.bazel' -exec rm {} +
 	rm -rf $(TOOLCHAIN_DIR)/grpc-gateway-temp
 	touch $@
 
@@ -181,12 +183,12 @@ endif
 
 %_grpc.pb.go: %.proto %.pb.go $(PROTOC_TOOLCHAIN)
 	$(PROTOC) $(PROTOC_INCLUDE_FLAGS) --go-grpc_out=. --go-grpc_opt=paths=source_relative $<
-	$(FX_GO) fmt $@
+	$(PROTOC_GO) fmt $@
 	touch $@
 
 %.pb.go: %.proto $(PROTOC_TOOLCHAIN)
 	$(PROTOC) $(PROTOC_INCLUDE_FLAGS) --go_out=. --go_opt=paths=source_relative $<
-	$(FX_GO) fmt $@
+	$(PROTOC_GO) fmt $@
 	touch $@
 
 %.pb.gw.go: %.proto %_grpc.pb.go $(PROTOC_TOOLCHAIN)
@@ -194,7 +196,7 @@ endif
 	$(PROTOC) $(PROTOC_INCLUDE_FLAGS) --grpc-gateway_out . --grpc-gateway_opt paths=source_relative --grpc-gateway_opt logtostderr=true --grpc-gateway_opt allow_delete_body=true $<
 	$(SED_REPLACE) 's/proto_0/proto/g' $@
 	$(SED_REPLACE) 's/status_0/status/g' $@
-	$(FX_GO) fmt $@
+	$(PROTOC_GO) fmt $@
 	touch $@
 
 %.swagger.json: %.proto %.pb.gw.go $(PROTOC_TOOLCHAIN)

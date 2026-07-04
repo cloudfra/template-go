@@ -13,8 +13,11 @@
 # limitations under the License.
 
 terraform {
+  # bucket is a placeholder: replace with your own GCS bucket (or configure it
+  # per-environment via `terraform init -backend-config="bucket=..."`) before
+  # running this template against real infrastructure.
   backend "gcs" {
-    bucket = "newscrawl-artifacts"
+    bucket = "REPLACE_WITH_YOUR_GCS_BUCKET"
     prefix = "terraform/state"
   }
 }

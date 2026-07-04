@@ -34,6 +34,7 @@ jobs:
             ./go.mod
             ./.git/*
             ./.cache/*
+            ./third_party/*
 
   # https://github.com/marketplace/actions/run-hadolint-with-reviewdog
   hadolint:
@@ -49,7 +50,11 @@ jobs:
           github_token: ${{ secrets.github_token }}
           reporter: github-pr-review # Default is github-pr-check
 
-  # https://github.com/marketplace/actions/run-codespell-with-reviewdog
+  # plettich/action-codespell is unmaintained (last updated 2024-12) and its
+  # Dockerfile floats on `alpine:latest`, which broke `pip install codespell`
+  # once Alpine picked up a PEP 668 externally-managed Python. Use the
+  # actively maintained official action instead.
+  # https://github.com/codespell-project/actions-codespell
   codespell:
     name: runner / codespell
     runs-on: ubuntu-latest
@@ -57,7 +62,9 @@ jobs:
       - name: Check out code.
         uses: actions/checkout@v7
       - name: codespell
-        # https://github.com/plettich/action-codespell
-        uses: plettich/action-codespell@master
+        uses: codespell-project/actions-codespell@v2.2
         with:
-          github_token: ${{ secrets.github_token }}
+          # third_party is vendored upstream proto sources we don't maintain;
+          # codespell's dictionary is broad enough to flag real typos in it
+          # that aren't ours to fix.
+          skip: "./.git,./go.sum,./go.mod,./third_party"
