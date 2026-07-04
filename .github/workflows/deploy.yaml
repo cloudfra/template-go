@@ -36,6 +36,9 @@ jobs:
       code-quality: write
     timeout-minutes: 20
     steps:
+      - name: Fix mod cache permissions
+        run: chmod -R u+w "$GITHUB_WORKSPACE/build/toolchain" 2>/dev/null || true
+
       - name: Checkout code
         # https://github.com/actions/checkout
         uses: actions/checkout@v7
