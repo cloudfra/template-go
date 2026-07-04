@@ -22,9 +22,7 @@ TERRAFORM_VERSION = 1.15.7
 ifeq ($(OS),Windows_NT)
 	DOCKERCOMPOSE_PACKAGE = https://github.com/docker/compose/releases/download/v$(DOCKERCOMPOSE_VERSION)/docker-compose-windows-x86_64.exe
 	TERRAFORM_PACKAGE = https://releases.hashicorp.com/terraform/$(TERRAFORM_VERSION)/terraform_$(TERRAFORM_VERSION)_windows_amd64.zip
-	DEBUG_HOST=localhost
 else
-	DEBUG_HOST=
 	UNAME_S := $(shell uname -s)
 	UNAME_ARCH := $(shell uname -m)
 	ifeq ($(UNAME_S),Linux)
@@ -42,38 +40,28 @@ else
 	endif
 endif
 
-RELEASE_CHANNEL=canary
 GO_WITH_PROXY = go
 GO = GOPROXY=off go
 GO_RACE=-race
 DOCKER = docker
 TAR = tar
-GZIP = gzip
 
 SHORT_SHA = $(shell git rev-parse --short=7 HEAD | tr -d [:punct:])
 DIRTY_VERSION = v0.0.0-$(SHORT_SHA)
 VERSION = $(shell git describe --tags || (echo $(DIRTY_VERSION) && exit 1))
 BUILD_DATE = $(shell date -u +'%Y-%m-%dT%H:%M:%SZ')
-RUN_DATE = $(shell date -u +'%Y%m%d-%H-%M-%S')
 TAG := $(VERSION)
 
 export PATH := $(PWD)/build/toolchain/bin:$(PATH)
-GO = go
 SOURCE_DIRS=$(shell go list ./... | grep -v '/vendor/')
 
 REGISTRY = ghcr.io/cloudfra
-PROTOS = 
-TEST_ASSETS = 
+PROTOS =
+TEST_ASSETS =
 ASSETS = $(PROTOS)
 ALL_APPS = example
 
-comma := ,
-empty:=
-space := $(empty) $(empty)
-
-GCLOUD = gcloud --project $(GCP_PROJECT)
 TERRAFORM = $(REPOSITORY_ROOT)/build/toolchain/bin/terraform$(EXE)
-GOCOVER_COBERTURA = $(REPOSITORY_ROOT)/build/toolchain/bin/gocover-cobertura$(EXE)
 TOOLCHAIN = build/toolchain/bin/gocover-cobertura$(EXE) build/toolchain/bin/docker-compose$(EXE) build/toolchain/bin/terraform$(EXE) build/toolchain/bin/vizb$(EXE) $(PROTOC_TOOLCHAIN)
 
 GO_TEST_COUNT = 25
@@ -130,7 +118,7 @@ build/toolchain/bin/vizb$(EXE):
 
 build/archives/terraform.zip:
 	mkdir -p $(ARCHIVES_DIR)/
-	$(FX_CURL) -o $(ARCHIVES_DIR)/terraform.zip -L $(TERRAFORM_PACKAGE)
+	$(CURL) -o $(ARCHIVES_DIR)/terraform.zip -L $(TERRAFORM_PACKAGE)
 	touch $@
 
 build/toolchain/bin/terraform$(EXE): build/archives/terraform.zip
@@ -148,7 +136,7 @@ build/toolchain/bin/docker-compose$(EXE):
 
 build/toolchain/bin/gocover-cobertura$(EXE):
 	mkdir -p $(dir $@)
-	GOBIN=$(dir $(REPOSITORY_ROOT)/$@) $(GO) install github.com/t-yuki/gocover-cobertura@latest
+	GOBIN=$(dir $(REPOSITORY_ROOT)/$@) $(GO_WITH_PROXY) install github.com/t-yuki/gocover-cobertura@latest
 
 build/bin/%: $(ASSETS)
 	GOOS=$(word 3, $(subst /, ,$(dir $@))) GOARCH=$(word 4, $(subst /, ,$(dir $@))) GOARM=$(subst v,,$(word 5, $(subst /, ,$(dir $@)))) CGO_ENABLED=0 $(GO) build -ldflags="-X 'github.com/cloudfra/template-go/internal.version=$(VERSION)' -X 'github.com/cloudfra/template-go/internal.buildstamp=$(BUILD_DATE)'" -o $@ cmd/$(basename $(notdir $@))/$(basename $(notdir $@)).go

@@ -20,11 +20,13 @@
 version: 2
 updates:
   - package-ecosystem: "docker"
-    directory: "/**"
+    directories:
+      - "/**"
     schedule:
       interval: "daily"
   - package-ecosystem: "docker-compose"
-    directory: "/**"
+    directories:
+      - "/**"
     schedule:
       interval: "daily"
   - package-ecosystem: "gomod"

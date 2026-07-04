@@ -15,7 +15,9 @@
 variable "gcp_project_id" {
   description = "Project ID to host the cloud resources."
   type        = string
-  default     = "jeremyje-news"
+  # No default: every user of this template must supply their own project ID
+  # (-var, a tfvars file, or TF_VAR_gcp_project_id) rather than silently
+  # deploying against someone else's project.
 }
 
 variable "cloud_region" {

@@ -14,11 +14,13 @@
 
 package example
 
+// Args holds the inputs for Run.
 type Args struct {
 	// File that contains the input data.
 	File string
 }
 
+// Run executes the example application logic.
 func Run(args Args) error {
 	return nil
 }
