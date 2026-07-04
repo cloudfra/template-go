@@ -105,6 +105,7 @@ jobs:
           file: coverage.xml
           language: Go
           label: code-coverage/gotest
+          fail-on-error: false
 
       - name: Build Binaries
         run: make all -j$(nproc)
