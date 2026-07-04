@@ -18,10 +18,13 @@ include proto.mk
 DOCKERCOMPOSE_VERSION = 5.3.0
 # https://developer.hashicorp.com/terraform/install
 TERRAFORM_VERSION = 1.15.7
+# https://github.com/cloudfra/certtool/releases
+CERTTOOL_VERSION = 0.2.2
 
 ifeq ($(OS),Windows_NT)
 	DOCKERCOMPOSE_PACKAGE = https://github.com/docker/compose/releases/download/v$(DOCKERCOMPOSE_VERSION)/docker-compose-windows-x86_64.exe
 	TERRAFORM_PACKAGE = https://releases.hashicorp.com/terraform/$(TERRAFORM_VERSION)/terraform_$(TERRAFORM_VERSION)_windows_amd64.zip
+	CERTTOOL_PACKAGE = https://github.com/cloudfra/certtool/releases/download/v$(CERTTOOL_VERSION)/certtool-amd64.exe
 else
 	UNAME_S := $(shell uname -s)
 	UNAME_ARCH := $(shell uname -m)
@@ -29,14 +32,17 @@ else
 		ifeq ($(UNAME_ARCH),arm)
 			DOCKERCOMPOSE_PACKAGE = https://github.com/docker/compose/releases/download/v$(DOCKERCOMPOSE_VERSION)/docker-compose-linux-aarch64
 			TERRAFORM_PACKAGE = https://releases.hashicorp.com/terraform/$(TERRAFORM_VERSION)/terraform_$(TERRAFORM_VERSION)_linux_arm64.zip
+			CERTTOOL_PACKAGE = https://github.com/cloudfra/certtool/releases/download/v$(CERTTOOL_VERSION)/certtool-arm
 		else
 			DOCKERCOMPOSE_PACKAGE = https://github.com/docker/compose/releases/download/v$(DOCKERCOMPOSE_VERSION)/docker-compose-linux-x86_64
 			TERRAFORM_PACKAGE = https://releases.hashicorp.com/terraform/$(TERRAFORM_VERSION)/terraform_$(TERRAFORM_VERSION)_linux_amd64.zip
+			CERTTOOL_PACKAGE = https://github.com/cloudfra/certtool/releases/download/v$(CERTTOOL_VERSION)/certtool-amd64
 		endif
 	endif
 	ifeq ($(UNAME_S),Darwin)
 		DOCKERCOMPOSE_PACKAGE = https://github.com/docker/compose/releases/download/v$(DOCKERCOMPOSE_VERSION)/docker-compose-darwin-aarch64
 		TERRAFORM_PACKAGE = https://releases.hashicorp.com/terraform/$(TERRAFORM_VERSION)/terraform_$(TERRAFORM_VERSION)_darwin_arm64.zip
+		CERTTOOL_PACKAGE = https://github.com/cloudfra/certtool/releases/download/v$(CERTTOOL_VERSION)/certtool-arm64-darwin
 	endif
 endif
 
@@ -62,7 +68,7 @@ ASSETS = $(PROTOS)
 ALL_APPS = example
 
 TERRAFORM = $(REPOSITORY_ROOT)/build/toolchain/bin/terraform$(EXE)
-TOOLCHAIN = build/toolchain/bin/gocover-cobertura$(EXE) build/toolchain/bin/docker-compose$(EXE) build/toolchain/bin/terraform$(EXE) build/toolchain/bin/vizb$(EXE) $(PROTOC_TOOLCHAIN)
+TOOLCHAIN = build/toolchain/bin/gocover-cobertura$(EXE) build/toolchain/bin/docker-compose$(EXE) build/toolchain/bin/terraform$(EXE) build/toolchain/bin/vizb$(EXE) build/toolchain/bin/certtool$(EXE) $(PROTOC_TOOLCHAIN)
 
 GO_TEST_COUNT = 25
 
@@ -132,6 +138,11 @@ build/toolchain/bin/terraform$(EXE): build/archives/terraform.zip
 build/toolchain/bin/docker-compose$(EXE):
 	mkdir -p $(TOOLCHAIN_BIN)
 	curl -Lo $@ $(DOCKERCOMPOSE_PACKAGE)
+	chmod +x $@
+
+build/toolchain/bin/certtool$(EXE):
+	mkdir -p $(TOOLCHAIN_BIN)
+	$(CURL) -Lo $@ $(CERTTOOL_PACKAGE)
 	chmod +x $@
 
 build/toolchain/bin/gocover-cobertura$(EXE):
