@@ -21,8 +21,9 @@ ARG VCS_REF
 ARG BUILD_TIME
 ARG BUILD_VERSION
 ARG BINARY_NAME
+ARG BINARY_PATH
 
-COPY bin/go/windows_amd64/example.exe /app/example.exe
+COPY ${BINARY_PATH} /app/example.exe
 COPY LICENSE /app/LICENSE
 
 USER ContainerUser

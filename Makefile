@@ -187,14 +187,6 @@ coverage.txt: $(ASSETS)
 coverage.xml: coverage.txt build/toolchain/bin/gocover-cobertura$(EXE)
 	$(REPOSITORY_ROOT)/build/toolchain/bin/gocover-cobertura$(EXE) < $< > $@
 
-ensure-builder:
-	-$(DOCKER) buildx create --name $(BUILDX_BUILDER)
-
-ALL_DOCKER_IMAGES = $(foreach app,$(ALL_APPS),docker-image-$(app))
-docker-images: $(ALL_DOCKER_IMAGES)
-docker-image-%: build/bin/linux/amd64/% ensure-builder
-	$(DOCKER) buildx build $(DOCKER_EXTRA_FLAGS) --platform linux/amd64 -f cmd/$*/Dockerfile -t $(REGISTRY)/$*:$(TAG) . $(DOCKER_PUSH)
-
 upgrade-deps:
 	$(GO_WITH_PROXY) get -u ./...
 	$(GO_WITH_PROXY) mod tidy
@@ -220,7 +212,51 @@ system-info:
 	@echo "Storage Metrics"
 	@df -h
 
-.PHONY: all tools assets protos windows-binaries run lint bench test tf-test test-deflake ensure-builder docker-images upgrade-deps deps clean presubmit system-info
+ensure-builder:
+	-$(DOCKER) buildx create --name $(BUILDX_BUILDER)
+
+ALL_DOCKER_IMAGES = $(foreach app,$(ALL_APPS),docker-image-$(app))
+docker-images: $(ALL_DOCKER_IMAGES)
+docker-image-%: build/bin/linux/amd64/% ensure-builder
+	$(DOCKER) buildx build $(DOCKER_EXTRA_FLAGS) --platform linux/amd64 -f cmd/$*/Dockerfile -t $(REGISTRY)/$*:$(TAG) . $(DOCKER_PUSH)
+
+
+EXAMPLE_IMAGE = $(REGISTRY)/example
+ALL_IMAGES = $(EXAMPLE_IMAGE)
+# https://github.com/docker-library/official-images#architectures-other-than-amd64
+images: linux-images windows-images
+	-$(DOCKER) manifest rm $(EXAMPLE_IMAGE):$(TAG)
+
+	for image in $(ALL_IMAGES) ; do \
+		$(DOCKER) manifest create $$image:$(TAG) $(foreach winver,$(WINDOWS_VERSIONS),$${image}:$(TAG)-windows_amd64-$(winver)) $(foreach platform,$(LINUX_PLATFORMS),$${image}:$(TAG)-$(subst /,_,$(platform))) ; \
+		for winver in $(WINDOWS_VERSIONS) ; do \
+			windows_version=`$(DOCKER) manifest inspect mcr.microsoft.com/windows/nanoserver:$${winver} | jq -r '.manifests[0].platform["os.version"]'`; \
+			$(DOCKER) manifest annotate --os-version $${windows_version} $${image}:$(TAG) $${image}:$(TAG)-windows_amd64-$${winver} ; \
+		done ; \
+		$(DOCKER) manifest push $$image:$(TAG) ; \
+	done
+
+example-image: build/bin/linux/amd64/example
+	$(DOCKER) build --build-arg BINARY_PATH=$< -f cmd/example/Dockerfile -t $(EXAMPLE_IMAGE):localtest .
+
+.SECONDEXPANSION:
+
+ALL_LINUX_IMAGES = $(foreach app,$(ALL_APPS),$(foreach platform,$(LINUX_PLATFORMS),linux-image-$(app)-$(subst /,_,$(platform))))
+linux-images: $(ALL_LINUX_IMAGES)
+
+# Stems here are underscore-joined (e.g. "linux_arm_v7"): GNU Make strips
+# everything before the last "/" when matching a slash-free pattern, so a
+# literal "linux/arm/v7" stem would never match this rule.
+linux-image-example-%: build/bin/$$(subst _,/,$$*)/example ensure-builder
+	$(DOCKER) buildx build $(DOCKER_EXTRA_FLAGS) --platform $(subst _,/,$*) --build-arg BINARY_PATH=$< -f cmd/example/Dockerfile -t $(EXAMPLE_IMAGE):$(TAG)-$* . $(DOCKER_PUSH)
+
+ALL_WINDOWS_IMAGES = $(foreach app,$(ALL_APPS),$(foreach winver,$(WINDOWS_VERSIONS),windows-image-$(app)-$(winver)))
+windows-images: $(ALL_WINDOWS_IMAGES)
+
+windows-image-example-%: build/bin/windows/amd64/example.exe ensure-builder
+	$(DOCKER) buildx build $(DOCKER_EXTRA_FLAGS) --platform windows/amd64 --build-arg BINARY_PATH=$< -f cmd/example/Dockerfile.windows --build-arg WINDOWS_VERSION=$* -t $(EXAMPLE_IMAGE):$(TAG)-windows_amd64-$* . $(DOCKER_PUSH)
+
+.PHONY: all tools assets protos windows-binaries run lint bench test tf-test test-deflake ensure-builder docker-images images linux-images windows-images example-image upgrade-deps deps clean presubmit system-info
 .SECONDEXPANSION:
 
 # "appname-linux_arm_v5" -> "linux_arm_v5"
