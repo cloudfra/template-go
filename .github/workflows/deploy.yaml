@@ -14,7 +14,6 @@
 
 name: CI
 
-
 on:
   push:
     tags: ["v*"]
@@ -29,17 +28,14 @@ jobs:
   build-linux:
     name: "Build Linux"
     runs-on: ["self-hosted", "linux", "large"]
- #   container:
-    #  image: docker.io/cloudfra/ci-core:canary # Maybe
+    # container:
+    #   image: docker.io/cloudfra/ci-core:canary # Maybe
     permissions:
       contents: write
       packages: write
       code-quality: write
     timeout-minutes: 20
     steps:
-      - name: System Information
-        run: make system-info
-
       - name: Checkout code
         # https://github.com/actions/checkout
         uses: actions/checkout@v7
@@ -50,6 +46,9 @@ jobs:
         with:
           go-version: stable
           cache: false
+
+      - name: System Information
+        run: make system-info
 
       - name: Container Fix
         run: git config --system --add safe.directory /__w/
