@@ -221,13 +221,11 @@ docker-image-%: build/bin/linux/amd64/% ensure-builder
 	$(DOCKER) buildx build $(DOCKER_EXTRA_FLAGS) --platform linux/amd64 -f cmd/$*/Dockerfile -t $(REGISTRY)/$*:$(TAG) . $(DOCKER_PUSH)
 
 
-EXAMPLE_IMAGE = $(REGISTRY)/example
-ALL_IMAGES = $(EXAMPLE_IMAGE)
+ALL_IMAGES = $(foreach app,$(ALL_APPS),$(REGISTRY)/$(app))
 # https://github.com/docker-library/official-images#architectures-other-than-amd64
 images: linux-images windows-images
-	-$(DOCKER) manifest rm $(EXAMPLE_IMAGE):$(TAG)
-
 	for image in $(ALL_IMAGES) ; do \
+		$(DOCKER) manifest rm $$image:$(TAG) 2>/dev/null || true ; \
 		$(DOCKER) manifest create $$image:$(TAG) $(foreach winver,$(WINDOWS_VERSIONS),$${image}:$(TAG)-windows_amd64-$(winver)) $(foreach platform,$(LINUX_PLATFORMS),$${image}:$(TAG)-$(subst /,_,$(platform))) ; \
 		for winver in $(WINDOWS_VERSIONS) ; do \
 			windows_version=`$(DOCKER) manifest inspect mcr.microsoft.com/windows/nanoserver:$${winver} | jq -r '.manifests[0].platform["os.version"]'`; \
@@ -237,24 +235,29 @@ images: linux-images windows-images
 	done
 
 example-image: build/bin/linux/amd64/example
-	$(DOCKER) build --build-arg BINARY_PATH=$< -f cmd/example/Dockerfile -t $(EXAMPLE_IMAGE):localtest .
+	$(DOCKER) build --build-arg BINARY_PATH=$< -f cmd/example/Dockerfile -t $(REGISTRY)/example:localtest .
 
 .SECONDEXPANSION:
 
 ALL_LINUX_IMAGES = $(foreach app,$(ALL_APPS),$(foreach platform,$(LINUX_PLATFORMS),linux-image-$(app)-$(subst /,_,$(platform))))
 linux-images: $(ALL_LINUX_IMAGES)
 
-# Stems here are underscore-joined (e.g. "linux_arm_v7"): GNU Make strips
-# everything before the last "/" when matching a slash-free pattern, so a
-# literal "linux/arm/v7" stem would never match this rule.
-linux-image-example-%: build/bin/$$(subst _,/,$$*)/example ensure-builder
-	$(DOCKER) buildx build $(DOCKER_EXTRA_FLAGS) --platform $(subst _,/,$*) --build-arg BINARY_PATH=$< -f cmd/example/Dockerfile -t $(EXAMPLE_IMAGE):$(TAG)-$* . $(DOCKER_PUSH)
+# Stems here are "<app>-<platform>" with platform underscore-joined (e.g.
+# "example-linux_arm_v7"): GNU Make strips everything before the last "/"
+# when matching a slash-free pattern, so a literal "/" in the platform
+# portion would never match this rule. $(call platform,...)/$(call appname,...)
+# (defined near the bottom of this file) split the stem back apart.
+linux-image-%: build/bin/$$(subst _,/,$$(call platform,$$*))/$$(call appname,$$*) ensure-builder
+	$(DOCKER) buildx build $(DOCKER_EXTRA_FLAGS) --platform $(subst _,/,$(call platform,$*)) --build-arg BINARY_PATH=$< -f cmd/$(call appname,$*)/Dockerfile -t $(REGISTRY)/$(call appname,$*):$(TAG)-$(call platform,$*) . $(DOCKER_PUSH)
 
 ALL_WINDOWS_IMAGES = $(foreach app,$(ALL_APPS),$(foreach winver,$(WINDOWS_VERSIONS),windows-image-$(app)-$(winver)))
 windows-images: $(ALL_WINDOWS_IMAGES)
 
-windows-image-example-%: build/bin/windows/amd64/example.exe ensure-builder
-	$(DOCKER) buildx build $(DOCKER_EXTRA_FLAGS) --platform windows/amd64 --build-arg BINARY_PATH=$< -f cmd/example/Dockerfile.windows --build-arg WINDOWS_VERSION=$* -t $(EXAMPLE_IMAGE):$(TAG)-windows_amd64-$* . $(DOCKER_PUSH)
+# Stems here are "<app>-<winver>" (e.g. "example-ltsc2022"); reuse the same
+# platform/appname split even though the trailing token is a Windows version,
+# not an OS/arch pair.
+windows-image-%: build/bin/windows/amd64/$$(call appname,$$*).exe ensure-builder
+	$(DOCKER) buildx build $(DOCKER_EXTRA_FLAGS) --platform windows/amd64 --build-arg BINARY_PATH=$< -f cmd/$(call appname,$*)/Dockerfile.windows --build-arg WINDOWS_VERSION=$(call platform,$*) -t $(REGISTRY)/$(call appname,$*):$(TAG)-windows_amd64-$(call platform,$*) . $(DOCKER_PUSH)
 
 .PHONY: all tools assets protos windows-binaries run lint bench test tf-test test-deflake ensure-builder docker-images images linux-images windows-images example-image upgrade-deps deps clean presubmit system-info
 .SECONDEXPANSION:
