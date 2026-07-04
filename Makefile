@@ -100,7 +100,11 @@ RELEASE_BINARIES = $(foreach app,$(ALL_APPS),$(foreach platform,$(ALL_PLATFORMS)
 
 WINDOWS_VERSIONS = 1709 1803 1809 1903 1909 2004 20H2 ltsc2022 ltsc2025
 BUILDX_BUILDER = buildx-builder
-DOCKER_EXTRA_FLAGS = --builder $(BUILDX_BUILDER)
+# --provenance/--sbom=false: buildx defaults to emitting an image index (manifest
+# list) wrapping a single-platform build to carry attestations. `docker manifest
+# create`/`annotate` can't reference into a nested index, which breaks the
+# per-platform tags merged by the `images` target below.
+DOCKER_EXTRA_FLAGS = --builder $(BUILDX_BUILDER) --provenance=false --sbom=false
 
 all: $(ALL_BINARIES)
 tools: $(TOOLCHAIN)
