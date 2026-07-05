@@ -26,18 +26,11 @@ import (
 var fileFlag = flag.String("file", "", "Input File")
 
 func main() {
-	if err := run(os.Args[1:]); err != nil {
+	flag.Parse()
+	if err := example.Run(example.Args{
+		File: *fileFlag,
+	}); err != nil {
 		log.Printf("ERROR: %s", err)
 		os.Exit(1)
 	}
-}
-
-// run executes the example application logic. It's split out from main so it
-// can be exercised by tests without hitting os.Exit directly.
-func run(args []string) error {
-	if err := flag.CommandLine.Parse(args); err != nil {
-		return err
-	}
-
-	return example.Run(example.Args{File: *fileFlag})
 }
