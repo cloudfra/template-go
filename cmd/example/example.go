@@ -26,6 +26,7 @@ import (
 var fileFlag = flag.String("file", "", "Input File")
 
 func main() {
+	flag.Parse()
 	if err := example.Run(example.Args{
 		File: *fileFlag,
 	}); err != nil {
