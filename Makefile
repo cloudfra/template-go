@@ -20,11 +20,14 @@ DOCKERCOMPOSE_VERSION = 5.3.0
 TERRAFORM_VERSION = 1.15.7
 # https://github.com/cloudfra/certtool/releases
 CERTTOOL_VERSION = 0.2.2
+# https://github.com/hadolint/hadolint/releases
+HADOLINT_VERSION = 2.14.0
 
 ifeq ($(OS),Windows_NT)
 	DOCKERCOMPOSE_PACKAGE = https://github.com/docker/compose/releases/download/v$(DOCKERCOMPOSE_VERSION)/docker-compose-windows-x86_64.exe
 	TERRAFORM_PACKAGE = https://releases.hashicorp.com/terraform/$(TERRAFORM_VERSION)/terraform_$(TERRAFORM_VERSION)_windows_amd64.zip
 	CERTTOOL_PACKAGE = https://github.com/cloudfra/certtool/releases/download/v$(CERTTOOL_VERSION)/certtool-amd64.exe
+	HADOLINT_PACKAGE = https://github.com/hadolint/hadolint/releases/download/v$(HADOLINT_VERSION)/hadolint-windows-x86_64.exe
 else
 	UNAME_S := $(shell uname -s)
 	UNAME_ARCH := $(shell uname -m)
@@ -33,16 +36,19 @@ else
 			DOCKERCOMPOSE_PACKAGE = https://github.com/docker/compose/releases/download/v$(DOCKERCOMPOSE_VERSION)/docker-compose-linux-aarch64
 			TERRAFORM_PACKAGE = https://releases.hashicorp.com/terraform/$(TERRAFORM_VERSION)/terraform_$(TERRAFORM_VERSION)_linux_arm64.zip
 			CERTTOOL_PACKAGE = https://github.com/cloudfra/certtool/releases/download/v$(CERTTOOL_VERSION)/certtool-arm
+			HADOLINT_PACKAGE = https://github.com/hadolint/hadolint/releases/download/v$(HADOLINT_VERSION)/hadolint-linux-arm64
 		else
 			DOCKERCOMPOSE_PACKAGE = https://github.com/docker/compose/releases/download/v$(DOCKERCOMPOSE_VERSION)/docker-compose-linux-x86_64
 			TERRAFORM_PACKAGE = https://releases.hashicorp.com/terraform/$(TERRAFORM_VERSION)/terraform_$(TERRAFORM_VERSION)_linux_amd64.zip
 			CERTTOOL_PACKAGE = https://github.com/cloudfra/certtool/releases/download/v$(CERTTOOL_VERSION)/certtool-amd64
+			HADOLINT_PACKAGE = https://github.com/hadolint/hadolint/releases/download/v$(HADOLINT_VERSION)/hadolint-linux-x86_64
 		endif
 	endif
 	ifeq ($(UNAME_S),Darwin)
 		DOCKERCOMPOSE_PACKAGE = https://github.com/docker/compose/releases/download/v$(DOCKERCOMPOSE_VERSION)/docker-compose-darwin-aarch64
 		TERRAFORM_PACKAGE = https://releases.hashicorp.com/terraform/$(TERRAFORM_VERSION)/terraform_$(TERRAFORM_VERSION)_darwin_arm64.zip
 		CERTTOOL_PACKAGE = https://github.com/cloudfra/certtool/releases/download/v$(CERTTOOL_VERSION)/certtool-arm64-darwin
+		HADOLINT_PACKAGE = https://github.com/hadolint/hadolint/releases/download/v$(HADOLINT_VERSION)/hadolint-macos-arm64
 	endif
 endif
 
@@ -105,6 +111,10 @@ BUILDX_BUILDER = buildx-builder
 # create`/`annotate` can't reference into a nested index, which breaks the
 # per-platform tags merged by the `images` target below.
 DOCKER_EXTRA_FLAGS = --builder $(BUILDX_BUILDER) --provenance=false --sbom=false
+# Both Dockerfiles declare BUILD_DATE/VCS_REF/BUILD_VERSION build-args for
+# their OCI/label-schema LABELs; without these, every image ships with empty
+# version/created/vcs-ref labels.
+DOCKER_LABEL_ARGS = --build-arg BUILD_DATE=$(BUILD_DATE) --build-arg VCS_REF=$(SHORT_SHA) --build-arg BUILD_VERSION=$(VERSION)
 
 all: $(ALL_BINARIES)
 tools: $(TOOLCHAIN)
@@ -161,6 +171,37 @@ build/toolchain/bin/gocover-cobertura$(EXE):
 	mkdir -p $(dir $@)
 	GOBIN=$(dir $(REPOSITORY_ROOT)/$@) $(GO_WITH_PROXY) install github.com/t-yuki/gocover-cobertura@latest
 
+# golangci-lint's own default config (errcheck, govet, ineffassign,
+# staticcheck, unused) already covers what a standalone staticcheck run
+# would, so it's the only Go correctness linter wired into `lint`.
+build/toolchain/bin/golangci-lint$(EXE):
+	mkdir -p $(dir $@)
+	GOBIN=$(dir $(REPOSITORY_ROOT)/$@) $(GO_WITH_PROXY) install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@latest
+
+# Stricter formatting than `go fmt` (gofmt superset).
+build/toolchain/bin/gofumpt$(EXE):
+	mkdir -p $(dir $@)
+	GOBIN=$(dir $(REPOSITORY_ROOT)/$@) $(GO_WITH_PROXY) install mvdan.cc/gofumpt@latest
+
+# Style/doc-comment linter; not covered by golangci-lint's default config.
+build/toolchain/bin/revive$(EXE):
+	mkdir -p $(dir $@)
+	GOBIN=$(dir $(REPOSITORY_ROOT)/$@) $(GO_WITH_PROXY) install github.com/mgechev/revive@latest
+
+build/toolchain/bin/tflint$(EXE):
+	mkdir -p $(dir $@)
+	GOBIN=$(dir $(REPOSITORY_ROOT)/$@) $(GO_WITH_PROXY) install github.com/terraform-linters/tflint@latest
+
+build/toolchain/bin/actionlint$(EXE):
+	mkdir -p $(dir $@)
+	GOBIN=$(dir $(REPOSITORY_ROOT)/$@) $(GO_WITH_PROXY) install github.com/rhysd/actionlint/cmd/actionlint@latest
+
+# Not a Go module, so it's fetched as a prebuilt binary like terraform/docker-compose above.
+build/toolchain/bin/hadolint$(EXE):
+	mkdir -p $(TOOLCHAIN_BIN)
+	$(CURL) -o $@ -L $(HADOLINT_PACKAGE)
+	chmod +x $@
+
 build/bin/%: $(ASSETS)
 	GOOS=$(word 3, $(subst /, ,$(dir $@))) GOARCH=$(word 4, $(subst /, ,$(dir $@))) GOARM=$(subst v,,$(word 5, $(subst /, ,$(dir $@)))) CGO_ENABLED=0 $(GO) build -ldflags="-X 'github.com/cloudfra/template-go/internal.version=$(VERSION)' -X 'github.com/cloudfra/template-go/internal.buildstamp=$(BUILD_DATE)'" -o $@ cmd/$(basename $(notdir $@))/$(basename $(notdir $@)).go
 	touch $@
@@ -168,10 +209,17 @@ build/bin/%: $(ASSETS)
 run: cmd/example/example.go
 	$(GO) run cmd/example/example.go
 
-lint: build/toolchain/bin/terraform$(EXE)
+lint: build/toolchain/bin/terraform$(EXE) build/toolchain/bin/golangci-lint$(EXE) build/toolchain/bin/gofumpt$(EXE) build/toolchain/bin/revive$(EXE) build/toolchain/bin/tflint$(EXE) build/toolchain/bin/actionlint$(EXE) build/toolchain/bin/hadolint$(EXE)
 	$(GO) fmt ./...
 	$(GO) vet ./...
+	build/toolchain/bin/gofumpt$(EXE) -l -w .
+	build/toolchain/bin/golangci-lint$(EXE) run ./...
+	build/toolchain/bin/revive$(EXE) -set_exit_status ./...
+	$(FIND) cmd -iname 'Dockerfile*' -exec build/toolchain/bin/hadolint$(EXE) {} +
+	build/toolchain/bin/actionlint$(EXE)
 	(cd install/terraform; $(TERRAFORM) fmt .)
+	build/toolchain/bin/tflint$(EXE) --init --chdir install/terraform
+	build/toolchain/bin/tflint$(EXE) --chdir install/terraform
 
 bench: $(TEST_ASSETS)
 	$(GO) test -bench=. -benchmem -tags testing ${SOURCE_DIRS}
@@ -183,7 +231,10 @@ test: $(TEST_ASSETS)
 	$(GO) test -tags testing ${SOURCE_DIRS}
 
 tf-test: build/toolchain/bin/terraform$(EXE) $(TEST_ASSETS)
-	(cd install/terraform/; $(TERRAFORM) init)
+	# -backend=false: main.tftest.hcl mocks the providers and never touches
+	# real state, so there's no need to configure the (real, per-environment)
+	# GCS backend just to run tests.
+	(cd install/terraform/; $(TERRAFORM) init -backend=false)
 	(cd install/terraform/; $(TERRAFORM) test)
 
 test-deflake: $(TEST_ASSETS)
@@ -233,7 +284,7 @@ ensure-builder:
 ALL_DOCKER_IMAGES = $(foreach app,$(ALL_APPS),docker-image-$(app))
 docker-images: $(ALL_DOCKER_IMAGES)
 docker-image-%: build/bin/linux/amd64/% ensure-builder
-	$(DOCKER) buildx build $(DOCKER_EXTRA_FLAGS) --platform linux/amd64 -f cmd/$*/Dockerfile -t $(REGISTRY)/$*:$(TAG) . $(DOCKER_PUSH)
+	$(DOCKER) buildx build $(DOCKER_EXTRA_FLAGS) --platform linux/amd64 --build-arg BINARY_PATH=$< $(DOCKER_LABEL_ARGS) --build-arg BINARY_NAME=$* -f cmd/$*/Dockerfile -t $(REGISTRY)/$*:$(TAG) . $(DOCKER_PUSH)
 
 
 ALL_IMAGES = $(foreach app,$(ALL_APPS),$(REGISTRY)/$(app))
@@ -249,9 +300,6 @@ images: linux-images windows-images
 		$(DOCKER) manifest push $$image:$(TAG) ; \
 	done
 
-example-image: build/bin/linux/amd64/example
-	$(DOCKER) build --build-arg BINARY_PATH=$< -f cmd/example/Dockerfile -t $(REGISTRY)/example:localtest .
-
 .SECONDEXPANSION:
 
 ALL_LINUX_IMAGES = $(foreach app,$(ALL_APPS),$(foreach platform,$(LINUX_PLATFORMS),linux-image-$(app)-$(subst /,_,$(platform))))
@@ -263,7 +311,7 @@ linux-images: $(ALL_LINUX_IMAGES)
 # portion would never match this rule. $(call platform,...)/$(call appname,...)
 # (defined near the bottom of this file) split the stem back apart.
 linux-image-%: build/bin/$$(subst _,/,$$(call platform,$$*))/$$(call appname,$$*) ensure-builder
-	$(DOCKER) buildx build $(DOCKER_EXTRA_FLAGS) --platform $(subst _,/,$(call platform,$*)) --build-arg BINARY_PATH=$< -f cmd/$(call appname,$*)/Dockerfile -t $(REGISTRY)/$(call appname,$*):$(TAG)-$(call platform,$*) . $(DOCKER_PUSH)
+	$(DOCKER) buildx build $(DOCKER_EXTRA_FLAGS) --platform $(subst _,/,$(call platform,$*)) --build-arg BINARY_PATH=$< $(DOCKER_LABEL_ARGS) --build-arg BINARY_NAME=$(call appname,$*) -f cmd/$(call appname,$*)/Dockerfile -t $(REGISTRY)/$(call appname,$*):$(TAG)-$(call platform,$*) . $(DOCKER_PUSH)
 
 ALL_WINDOWS_IMAGES = $(foreach app,$(ALL_APPS),$(foreach winver,$(WINDOWS_VERSIONS),windows-image-$(app)-$(winver)))
 windows-images: $(ALL_WINDOWS_IMAGES)
@@ -272,9 +320,9 @@ windows-images: $(ALL_WINDOWS_IMAGES)
 # platform/appname split even though the trailing token is a Windows version,
 # not an OS/arch pair.
 windows-image-%: build/bin/windows/amd64/$$(call appname,$$*).exe ensure-builder
-	$(DOCKER) buildx build $(DOCKER_EXTRA_FLAGS) --platform windows/amd64 --build-arg BINARY_PATH=$< -f cmd/$(call appname,$*)/Dockerfile.windows --build-arg WINDOWS_VERSION=$(call platform,$*) -t $(REGISTRY)/$(call appname,$*):$(TAG)-windows_amd64-$(call platform,$*) . $(DOCKER_PUSH)
+	$(DOCKER) buildx build $(DOCKER_EXTRA_FLAGS) --platform windows/amd64 --build-arg BINARY_PATH=$< $(DOCKER_LABEL_ARGS) --build-arg BINARY_NAME=$(call appname,$*) -f cmd/$(call appname,$*)/Dockerfile.windows --build-arg WINDOWS_VERSION=$(call platform,$*) -t $(REGISTRY)/$(call appname,$*):$(TAG)-windows_amd64-$(call platform,$*) . $(DOCKER_PUSH)
 
-.PHONY: all tools assets protos windows-binaries run lint bench test tf-test test-deflake ensure-builder docker-images images linux-images windows-images example-image upgrade-deps deps clean presubmit system-info
+.PHONY: all tools assets protos windows-binaries run lint bench test tf-test test-deflake ensure-builder docker-images images linux-images windows-images upgrade-deps deps clean presubmit system-info release-binaries no-sudo
 .SECONDEXPANSION:
 
 # "appname-linux_arm_v5" -> "linux_arm_v5"

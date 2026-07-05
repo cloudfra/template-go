@@ -16,7 +16,6 @@ FROM --platform=$BUILDPLATFORM gcr.io/distroless/static:nonroot
 
 ARG BUILD_DATE
 ARG VCS_REF
-ARG BUILD_TIME
 ARG BUILD_VERSION
 ARG BINARY_NAME
 ARG BINARY_PATH
@@ -31,13 +30,13 @@ ENTRYPOINT ["/app/example"]
 # Standardized Docker Image Labels
 # https://github.com/opencontainers/image-spec/blob/master/annotations.md
 LABEL \
-    org.opencontainers.image.created="${BUILD_TIME}" \
+    org.opencontainers.image.created="${BUILD_DATE}" \
     org.opencontainers.image.authors="Cloudfra <cloudfra@googlegroups.com>" \
     org.opencontainers.image.url="https://github.com/cloudfra/example" \
     org.opencontainers.image.documentation="https://github.com/cloudfra/example" \
     org.opencontainers.image.source="https://github.com/cloudfra/example" \
     org.opencontainers.image.version="${BUILD_VERSION}" \
-    org.opencontainers.image.revision="1" \
+    org.opencontainers.image.revision="${VCS_REF}" \
     org.opencontainers.image.vendor="Cloudfra" \
     org.opencontainers.image.licenses="Apache-2.0" \
     org.opencontainers.image.ref.name="" \

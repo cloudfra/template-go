@@ -3,7 +3,7 @@
 <!-- markdownlint-disable-next-line MD033 -->
 <img src="logo.png" alt="Logo" width="64" height="64" />
 
-[![CI](https://github.com/cloudfra/template-go/actions/workflows/deploy.yaml/badge.svg)](https://github.com/cloudfra/template-go/actions/workflows/deploy.yaml) [![Go Reference](https://pkg.go.dev/badge/github.com/cloudfra/example-go.svg)](https://pkg.go.dev/github.com/cloudfra/example-go) [![codecov](https://codecov.io/gh/cloudfra/template-go/graph/badge.svg?token=UVApxhg6z7)](https://codecov.io/gh/cloudfra/template-go)
+[![CI](https://github.com/cloudfra/template-go/actions/workflows/deploy.yaml/badge.svg)](https://github.com/cloudfra/template-go/actions/workflows/deploy.yaml) [![Go Reference](https://pkg.go.dev/badge/github.com/cloudfra/template-go.svg)](https://pkg.go.dev/github.com/cloudfra/template-go) [![codecov](https://codecov.io/gh/cloudfra/template-go/graph/badge.svg?token=UVApxhg6z7)](https://codecov.io/gh/cloudfra/template-go)
 
 A starter template for Go projects at Cloudfra, wiring together a
 `make`-based build system, cross-platform binaries, Docker images,
@@ -28,7 +28,7 @@ boilerplate and start with working infrastructure on day one.
 
 ```bash
 # Clone the repository
-git clone git@github.com:cloudfra/example-go.git
+git clone git@github.com:cloudfra/template-go.git
 # Build binaries for every supported platform
 make -j$(nproc)
 # Build and run the example binary for your current platform
@@ -81,8 +81,8 @@ Infrastructure is managed with Terraform under `install/terraform`:
 ```bash
 cd install/terraform
 terraform init
-terraform plan -var=testing=true
-terraform apply -var=testing=true
+terraform plan -var=gcp_project_id=<your-project-id> -var=testing=true
+terraform apply -var=gcp_project_id=<your-project-id> -var=testing=true
 ```
 
 ## License
