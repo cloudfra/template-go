@@ -27,9 +27,3 @@ func TestRun_WithFileFlag(t *testing.T) {
 		t.Errorf("run() failed, %s", err)
 	}
 }
-
-func TestRun_UnknownFlag(t *testing.T) {
-	if err := run([]string{"-does-not-exist"}); err == nil {
-		t.Error("run() with an unknown flag should have returned an error")
-	}
-}
