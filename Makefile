@@ -299,7 +299,7 @@ windows-images: $(ALL_WINDOWS_IMAGES)
 windows-image-%: build/bin/windows/amd64/$$(call appname,$$*).exe ensure-builder
 	$(DOCKER) buildx build $(DOCKER_EXTRA_FLAGS) --platform windows/amd64 --build-arg BINARY_PATH=$< $(DOCKER_LABEL_ARGS) --build-arg BINARY_NAME=$(call appname,$*) -f cmd/$(call appname,$*)/Dockerfile.windows --build-arg WINDOWS_VERSION=$(call platform,$*) -t $(REGISTRY)/$(call appname,$*):$(TAG)-windows_amd64-$(call platform,$*) . $(DOCKER_PUSH)
 
-.PHONY: all tools assets protos windows-binaries run lint bench test tf-test test-deflake ensure-builder docker-images images linux-images windows-images upgrade-deps deps clean presubmit system-info
+.PHONY: all tools assets protos windows-binaries run lint bench test tf-test test-deflake ensure-builder docker-images images linux-images windows-images upgrade-deps deps clean presubmit system-info release-binaries no-sudo
 .SECONDEXPANSION:
 
 # "appname-linux_arm_v5" -> "linux_arm_v5"

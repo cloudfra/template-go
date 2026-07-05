@@ -14,6 +14,12 @@
 
 # https://github.com/protocolbuffers/protobuf/releases
 PROTOC_VERSION = 35.1
+# https://github.com/googleapis/googleapis has no meaningful release tags, so
+# this is pinned by commit instead - update by grabbing the latest commit off
+# https://github.com/googleapis/googleapis/commits/master
+GOOGLEAPIS_COMMIT = ba4573adabf42e4e0bb9877f11de8c8f1005aa0a
+# https://github.com/grpc-ecosystem/grpc-gateway/releases
+GRPC_GATEWAY_VERSION = 2.29.0
 
 EXE =
 FIND = find
@@ -111,13 +117,13 @@ build/toolchain/bin/protoc-gen-openapiv2$(EXE): third_party/google_protobuf/incl
 build/archives/googleapis.zip:
 	mkdir -p $(ARCHIVES_DIR)/
 	$(CURL) -o $(ARCHIVES_DIR)/googleapis.zip -L \
-		https://github.com/googleapis/googleapis/archive/master.zip
+		https://github.com/googleapis/googleapis/archive/$(GOOGLEAPIS_COMMIT).zip
 	touch $@
 
 build/archives/grpc-gateway.zip:
 	mkdir -p $(ARCHIVES_DIR)/
 	$(CURL) -o $(ARCHIVES_DIR)/grpc-gateway.zip -L \
-		https://github.com/grpc-ecosystem/grpc-gateway/archive/master.zip
+		https://github.com/grpc-ecosystem/grpc-gateway/archive/refs/tags/v$(GRPC_GATEWAY_VERSION).zip
 	touch $@
 
 third_party/google_protobuf/include/google/: third_party/google_protobuf/include/google/LICENSE
@@ -140,13 +146,13 @@ third_party/google_protobuf/include/google/LICENSE: build/archives/protoc.zip bu
 	mkdir -p $(THIRDPARTY_DIR)/google_protobuf/include/google/api/
 	mkdir -p $(THIRDPARTY_DIR)/google_protobuf/include/google/rpc/
 	mkdir -p $(THIRDPARTY_DIR)/google_protobuf/include/google/longrunning/
-	cp -rf $(TOOLCHAIN_DIR)/googleapis-temp/googleapis-master/google/api/* \
+	cp -rf $(TOOLCHAIN_DIR)/googleapis-temp/googleapis-$(GOOGLEAPIS_COMMIT)/google/api/* \
 		$(THIRDPARTY_DIR)/google_protobuf/include/google/api/
-	cp -rf $(TOOLCHAIN_DIR)/googleapis-temp/googleapis-master/google/rpc/* \
+	cp -rf $(TOOLCHAIN_DIR)/googleapis-temp/googleapis-$(GOOGLEAPIS_COMMIT)/google/rpc/* \
 		$(THIRDPARTY_DIR)/google_protobuf/include/google/rpc/
-	cp -rf $(TOOLCHAIN_DIR)/googleapis-temp/googleapis-master/google/longrunning/* \
+	cp -rf $(TOOLCHAIN_DIR)/googleapis-temp/googleapis-$(GOOGLEAPIS_COMMIT)/google/longrunning/* \
 		$(THIRDPARTY_DIR)/google_protobuf/include/google/longrunning/
-	cp -f $(TOOLCHAIN_DIR)/googleapis-temp/googleapis-master/LICENSE \
+	cp -f $(TOOLCHAIN_DIR)/googleapis-temp/googleapis-$(GOOGLEAPIS_COMMIT)/LICENSE \
 		$(THIRDPARTY_DIR)/google_protobuf/include/google/LICENSE
 	$(FIND) $(THIRDPARTY_DIR)/google_protobuf/include/google/ -type f -name '*BUILD.bazel' -exec rm {} +
 	rm -rf $(TOOLCHAIN_DIR)/googleapis-temp
@@ -163,9 +169,9 @@ third_party/grpc_gateway/include/protoc-gen-openapiv2/LICENSE: build/archives/gr
 
 	cp $(ARCHIVES_DIR)/grpc-gateway.zip $(TOOLCHAIN_DIR)/grpc-gateway-temp/
 	(cd $(TOOLCHAIN_DIR)/grpc-gateway-temp/; unzip -q -o grpc-gateway.zip)
-	cp -rf $(TOOLCHAIN_DIR)/grpc-gateway-temp/grpc-gateway-main/protoc-gen-openapiv2/options/*.proto \
+	cp -rf $(TOOLCHAIN_DIR)/grpc-gateway-temp/grpc-gateway-$(GRPC_GATEWAY_VERSION)/protoc-gen-openapiv2/options/*.proto \
 		$(THIRDPARTY_DIR)/grpc_gateway/include/protoc-gen-openapiv2/options/
-	cp -f $(TOOLCHAIN_DIR)/grpc-gateway-temp/grpc-gateway-main/LICENSE \
+	cp -f $(TOOLCHAIN_DIR)/grpc-gateway-temp/grpc-gateway-$(GRPC_GATEWAY_VERSION)/LICENSE \
 		$(THIRDPARTY_DIR)/grpc_gateway/include/protoc-gen-openapiv2/LICENSE
 	$(FIND) $(THIRDPARTY_DIR)/grpc_gateway/include/protoc-gen-openapiv2/ -type f -name '*BUILD.bazel' -exec rm {} +
 	rm -rf $(TOOLCHAIN_DIR)/grpc-gateway-temp
