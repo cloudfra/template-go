@@ -99,10 +99,10 @@ BUILDX_BUILDER = buildx-builder
 # create`/`annotate` can't reference into a nested index, which breaks the
 # per-platform tags merged by the `images` target below.
 DOCKER_EXTRA_FLAGS = --builder $(BUILDX_BUILDER) --provenance=false --sbom=false
-# Both Dockerfiles declare BUILD_DATE/BUILD_TIME/VCS_REF/BUILD_VERSION build-args
-# for their OCI/label-schema LABELs; without these, every image ships with
-# empty version/created/vcs-ref labels.
-DOCKER_LABEL_ARGS = --build-arg BUILD_DATE=$(BUILD_DATE) --build-arg BUILD_TIME=$(BUILD_DATE) --build-arg VCS_REF=$(SHORT_SHA) --build-arg BUILD_VERSION=$(VERSION)
+# Both Dockerfiles declare BUILD_DATE/VCS_REF/BUILD_VERSION build-args for
+# their OCI/label-schema LABELs; without these, every image ships with empty
+# version/created/vcs-ref labels.
+DOCKER_LABEL_ARGS = --build-arg BUILD_DATE=$(BUILD_DATE) --build-arg VCS_REF=$(SHORT_SHA) --build-arg BUILD_VERSION=$(VERSION)
 
 all: $(ALL_BINARIES)
 tools: $(TOOLCHAIN)
