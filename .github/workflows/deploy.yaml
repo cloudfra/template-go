@@ -121,7 +121,6 @@ jobs:
         run: make build/packages/release.tar.gz
 
       - name: Create Release Binaries
-        if: ${{ github.event_name != 'pull_request' }}
         run: make release-binaries
 
       - name: Login to GitHub Container Registry

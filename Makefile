@@ -332,9 +332,17 @@ appname  = $(patsubst %-$(call platform,$(1)),%,$(basename $(1)))
 # source path: build/bin/linux/arm/v5/appname (no extension on sources)
 rel2bin  = build/bin/$(subst _,/,$(call platform,$(1)))/$(call appname,$(1))$(if $(findstring windows,$(platform)),.exe,)
 
+# Debian/Ubuntu's binutils package ships objcopy built with only the x86 BFD
+# backends (elf64-x86-64, elf32-i386) - it cannot parse ARM/MIPS/PPC/RISC-V/
+# LoongArch/s390x ELF at all, regardless of how valid those bytes are. So
+# only these two Linux architectures can actually be embed-signed with it;
+# every other Linux platform falls through to the plain-copy case below,
+# same as darwin/bsd/other platforms with no apt-installable signing tool.
+LINUX_OBJCOPY_SIGNABLE_PLATFORMS = linux_386 linux_amd64
+
 build/release/%: $$(call rel2bin,$$*) $(CODESIGN_CERT) $(CODESIGN_KEY)
 	@mkdir -p $(@D)
 	cp $< $@
 	touch $@
 	$(if $(findstring windows,$(call platform,$*)),osslsigncode sign -certs $(CODESIGN_CERT) -key $(CODESIGN_KEY) -in $@ -out $@.signed && mv $@.signed $@ && chmod +x $@,)
-	$(if $(findstring linux,$(call platform,$*)),openssl cms -sign -binary -in $@ -signer $(CODESIGN_CERT) -inkey $(CODESIGN_KEY) -outform DER -out $@.sig && objcopy --add-section .cloudfra_signature=$@.sig --set-section-flags .cloudfra_signature=noload$(COMMA)readonly $@ && rm -f $@.sig,)
+	$(if $(filter $(LINUX_OBJCOPY_SIGNABLE_PLATFORMS),$(call platform,$*)),openssl cms -sign -binary -in $@ -signer $(CODESIGN_CERT) -inkey $(CODESIGN_KEY) -outform DER -out $@.sig && objcopy --add-section .cloudfra_signature=$@.sig --set-section-flags .cloudfra_signature=noload$(COMMA)readonly $@ && rm -f $@.sig,)
