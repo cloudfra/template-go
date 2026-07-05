@@ -92,6 +92,10 @@ WINDOWS_BINARIES = $(foreach app,$(ALL_APPS),$(foreach platform,$(WINDOWS_PLATFO
 ALL_BINARIES = $(foreach app,$(ALL_APPS),$(foreach platform,$(ALL_PLATFORMS),build/bin/$(platform)/$(app)$(if $(findstring windows,$(platform)),.exe,)))
 CODESIGN_CERT ?= build/certs/codesign.crt
 CODESIGN_KEY ?= build/certs/codesign.key
+# A literal "," inside a $(if ...) argument is parsed as another argument
+# separator, not part of the text - COMMA hides it behind a nested
+# variable reference so it survives into objcopy's --set-section-flags.
+COMMA := ,
 RELEASE_BINARIES = $(foreach app,$(ALL_APPS),$(foreach platform,$(ALL_PLATFORMS),build/release/$(app)-$(subst /,_,$(platform))$(if $(findstring windows,$(platform)),.exe,)))
 
 WINDOWS_VERSIONS = 1709 1803 1809 1903 1909 2004 20H2 ltsc2022 ltsc2025
@@ -280,7 +284,9 @@ appname  = $(patsubst %-$(call platform,$(1)),%,$(basename $(1)))
 # source path: build/bin/linux/arm/v5/appname (no extension on sources)
 rel2bin  = build/bin/$(subst _,/,$(call platform,$(1)))/$(call appname,$(1))$(if $(findstring windows,$(platform)),.exe,)
 
-build/release/%: $$(call rel2bin,$$*)
+build/release/%: $$(call rel2bin,$$*) $(CODESIGN_CERT) $(CODESIGN_KEY)
 	@mkdir -p $(@D)
 	cp $< $@
 	touch $@
+	$(if $(findstring windows,$(call platform,$*)),osslsigncode sign -certs $(CODESIGN_CERT) -key $(CODESIGN_KEY) -in $@ -out $@.signed && mv $@.signed $@ && chmod +x $@,)
+	$(if $(findstring linux,$(call platform,$*)),openssl cms -sign -binary -in $@ -signer $(CODESIGN_CERT) -inkey $(CODESIGN_KEY) -outform DER -out $@.sig && objcopy --add-section .cloudfra_signature=$@.sig --set-section-flags .cloudfra_signature=noload$(COMMA)readonly $@ && rm -f $@.sig,)
