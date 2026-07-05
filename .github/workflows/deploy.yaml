@@ -113,13 +113,16 @@ jobs:
       - name: Build Binaries
         run: make all -j"$(nproc)"
 
+      - name: Install Signing Dependencies
+        run: sudo apt-get update && sudo apt-get install -y osslsigncode binutils openssl
+
       - name: Release Package
         if: ${{ github.event_name != 'pull_request' }}
         run: make build/packages/release.tar.gz
 
-      # - name: Create Release Binaries
-      #   if: ${{ github.event_name != 'pull_request' }}
-      #   run: make release-binaries
+      - name: Create Release Binaries
+        if: ${{ github.event_name != 'pull_request' }}
+        run: make release-binaries
 
       - name: Login to GitHub Container Registry
         # https://github.com/docker/login-action#github-packages-docker-registry

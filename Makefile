@@ -18,12 +18,15 @@ include proto.mk
 DOCKERCOMPOSE_VERSION = 5.3.0
 # https://developer.hashicorp.com/terraform/install
 TERRAFORM_VERSION = 1.15.7
+# https://github.com/cloudfra/certtool/releases
+CERTTOOL_VERSION = 0.2.2
 # https://github.com/hadolint/hadolint/releases
 HADOLINT_VERSION = 2.14.0
 
 ifeq ($(OS),Windows_NT)
 	DOCKERCOMPOSE_PACKAGE = https://github.com/docker/compose/releases/download/v$(DOCKERCOMPOSE_VERSION)/docker-compose-windows-x86_64.exe
 	TERRAFORM_PACKAGE = https://releases.hashicorp.com/terraform/$(TERRAFORM_VERSION)/terraform_$(TERRAFORM_VERSION)_windows_amd64.zip
+	CERTTOOL_PACKAGE = https://github.com/cloudfra/certtool/releases/download/v$(CERTTOOL_VERSION)/certtool-amd64.exe
 	HADOLINT_PACKAGE = https://github.com/hadolint/hadolint/releases/download/v$(HADOLINT_VERSION)/hadolint-windows-x86_64.exe
 else
 	UNAME_S := $(shell uname -s)
@@ -32,16 +35,19 @@ else
 		ifeq ($(UNAME_ARCH),arm)
 			DOCKERCOMPOSE_PACKAGE = https://github.com/docker/compose/releases/download/v$(DOCKERCOMPOSE_VERSION)/docker-compose-linux-aarch64
 			TERRAFORM_PACKAGE = https://releases.hashicorp.com/terraform/$(TERRAFORM_VERSION)/terraform_$(TERRAFORM_VERSION)_linux_arm64.zip
+			CERTTOOL_PACKAGE = https://github.com/cloudfra/certtool/releases/download/v$(CERTTOOL_VERSION)/certtool-arm
 			HADOLINT_PACKAGE = https://github.com/hadolint/hadolint/releases/download/v$(HADOLINT_VERSION)/hadolint-linux-arm64
 		else
 			DOCKERCOMPOSE_PACKAGE = https://github.com/docker/compose/releases/download/v$(DOCKERCOMPOSE_VERSION)/docker-compose-linux-x86_64
 			TERRAFORM_PACKAGE = https://releases.hashicorp.com/terraform/$(TERRAFORM_VERSION)/terraform_$(TERRAFORM_VERSION)_linux_amd64.zip
+			CERTTOOL_PACKAGE = https://github.com/cloudfra/certtool/releases/download/v$(CERTTOOL_VERSION)/certtool-amd64
 			HADOLINT_PACKAGE = https://github.com/hadolint/hadolint/releases/download/v$(HADOLINT_VERSION)/hadolint-linux-x86_64
 		endif
 	endif
 	ifeq ($(UNAME_S),Darwin)
 		DOCKERCOMPOSE_PACKAGE = https://github.com/docker/compose/releases/download/v$(DOCKERCOMPOSE_VERSION)/docker-compose-darwin-aarch64
 		TERRAFORM_PACKAGE = https://releases.hashicorp.com/terraform/$(TERRAFORM_VERSION)/terraform_$(TERRAFORM_VERSION)_darwin_arm64.zip
+		CERTTOOL_PACKAGE = https://github.com/cloudfra/certtool/releases/download/v$(CERTTOOL_VERSION)/certtool-arm64-darwin
 		HADOLINT_PACKAGE = https://github.com/hadolint/hadolint/releases/download/v$(HADOLINT_VERSION)/hadolint-macos-arm64
 	endif
 endif
@@ -68,7 +74,7 @@ ASSETS = $(PROTOS)
 ALL_APPS = example
 
 TERRAFORM = $(REPOSITORY_ROOT)/build/toolchain/bin/terraform$(EXE)
-TOOLCHAIN = build/toolchain/bin/gocover-cobertura$(EXE) build/toolchain/bin/docker-compose$(EXE) build/toolchain/bin/terraform$(EXE) build/toolchain/bin/vizb$(EXE) $(PROTOC_TOOLCHAIN)
+TOOLCHAIN = build/toolchain/bin/gocover-cobertura$(EXE) build/toolchain/bin/docker-compose$(EXE) build/toolchain/bin/terraform$(EXE) build/toolchain/bin/vizb$(EXE) build/toolchain/bin/certtool$(EXE) $(PROTOC_TOOLCHAIN)
 
 GO_TEST_COUNT = 25
 
@@ -90,6 +96,12 @@ ALL_PLATFORMS = $(LINUX_PLATFORMS) $(WINDOWS_PLATFORMS) $(NICHE_PLATFORMS)
 MAIN_BINARIES = $(foreach app,$(ALL_APPS),$(foreach platform,$(MAIN_PLATFORMS),build/bin/$(platform)/$(app)$(if $(findstring windows,$(platform)),.exe,)))
 WINDOWS_BINARIES = $(foreach app,$(ALL_APPS),$(foreach platform,$(WINDOWS_PLATFORMS),build/bin/$(platform)/$(app)$(if $(findstring windows,$(platform)),.exe,)))
 ALL_BINARIES = $(foreach app,$(ALL_APPS),$(foreach platform,$(ALL_PLATFORMS),build/bin/$(platform)/$(app)$(if $(findstring windows,$(platform)),.exe,)))
+CODESIGN_CERT ?= build/certs/codesign.crt
+CODESIGN_KEY ?= build/certs/codesign.key
+# A literal "," inside a $(if ...) argument is parsed as another argument
+# separator, not part of the text - COMMA hides it behind a nested
+# variable reference so it survives into objcopy's --set-section-flags.
+COMMA := ,
 RELEASE_BINARIES = $(foreach app,$(ALL_APPS),$(foreach platform,$(ALL_PLATFORMS),build/release/$(app)-$(subst /,_,$(platform))$(if $(findstring windows,$(platform)),.exe,)))
 
 WINDOWS_VERSIONS = 1709 1803 1809 1903 1909 2004 20H2 ltsc2022 ltsc2025
@@ -143,6 +155,17 @@ build/toolchain/bin/docker-compose$(EXE):
 	mkdir -p $(TOOLCHAIN_BIN)
 	curl -Lo $@ $(DOCKERCOMPOSE_PACKAGE)
 	chmod +x $@
+
+build/toolchain/bin/certtool$(EXE):
+	mkdir -p $(TOOLCHAIN_BIN)
+	$(CURL) -Lo $@ $(CERTTOOL_PACKAGE)
+	chmod +x $@
+
+ifeq ($(CODESIGN_CERT)|$(CODESIGN_KEY),build/certs/codesign.crt|build/certs/codesign.key)
+build/certs/codesign.crt build/certs/codesign.key &: build/toolchain/bin/certtool$(EXE)
+	mkdir -p $(dir $(CODESIGN_CERT))
+	$(TOOLCHAIN_BIN)/certtool$(EXE) --code-sign --target=linux --public-certificate=$(CODESIGN_CERT) --private-key=$(CODESIGN_KEY)
+endif
 
 build/toolchain/bin/gocover-cobertura$(EXE):
 	mkdir -p $(dir $@)
@@ -309,7 +332,9 @@ appname  = $(patsubst %-$(call platform,$(1)),%,$(basename $(1)))
 # source path: build/bin/linux/arm/v5/appname (no extension on sources)
 rel2bin  = build/bin/$(subst _,/,$(call platform,$(1)))/$(call appname,$(1))$(if $(findstring windows,$(platform)),.exe,)
 
-build/release/%: $$(call rel2bin,$$*)
+build/release/%: $$(call rel2bin,$$*) $(CODESIGN_CERT) $(CODESIGN_KEY)
 	@mkdir -p $(@D)
 	cp $< $@
 	touch $@
+	$(if $(findstring windows,$(call platform,$*)),osslsigncode sign -certs $(CODESIGN_CERT) -key $(CODESIGN_KEY) -in $@ -out $@.signed && mv $@.signed $@ && chmod +x $@,)
+	$(if $(findstring linux,$(call platform,$*)),openssl cms -sign -binary -in $@ -signer $(CODESIGN_CERT) -inkey $(CODESIGN_KEY) -outform DER -out $@.sig && objcopy --add-section .cloudfra_signature=$@.sig --set-section-flags .cloudfra_signature=noload$(COMMA)readonly $@ && rm -f $@.sig,)
