@@ -267,8 +267,13 @@ lint-docker: build/toolchain/bin/hadolint$(EXE)
 # merely being resolvable via PATH, so `run:` script blocks embedded in
 # workflow YAML get checked by shellcheck too (there are no standalone .sh
 # scripts in this repo today - see lint-shell).
+#
+# -ignore silences actionlint v1.7.12's unknown-permission-scope check for
+# "code-quality": that scope is real (see the Upload Coverage Report step in
+# deploy.yaml) but newer than actionlint's built-in scope list. Drop this
+# once actionlint recognizes it upstream.
 lint-yaml: build/toolchain/bin/actionlint$(EXE) build/toolchain/bin/shellcheck$(EXE)
-	build/toolchain/bin/actionlint$(EXE) -shellcheck=$(REPOSITORY_ROOT)/build/toolchain/bin/shellcheck$(EXE)
+	build/toolchain/bin/actionlint$(EXE) -shellcheck=$(REPOSITORY_ROOT)/build/toolchain/bin/shellcheck$(EXE) -ignore 'unknown permission scope "code-quality"'
 
 # No standalone shell scripts exist in this repo yet (embedded workflow
 # scripts are covered by lint-yaml's actionlint+shellcheck integration
