@@ -109,15 +109,14 @@ jobs:
       - name: Upload Coverage Report
         # https://github.com/actions/upload-code-coverage
         # https://docs.github.com/en/code-security/how-tos/maintain-quality-code/set-up-code-coverage#step-2-upload-the-coverage-report
-        # Code Quality (and this upload) requires a GitHub Team/GHEC plan;
-        # cloudfra is on the Free plan (confirmed via `gh api orgs/cloudfra`),
-        # so this currently 403s with "Resource not accessible by
-        # integration" regardless of the code-quality:write permission
-        # above. continue-on-error (rather than the action's own
-        # fail-on-error: false) surfaces that as a visibly failed step/
-        # annotation instead of a silent green check, without blocking the
-        # rest of the job. Drop continue-on-error once the org is on a
-        # qualifying plan.
+        # This 403'd on every run ("Resource not accessible by integration")
+        # until the code-quality: write permission above was added - that
+        # was the actual fix. continue-on-error (rather than the action's
+        # own fail-on-error: false) is kept as a belt-and-suspenders
+        # safety net so a future regression here shows up as a visibly
+        # failed step/annotation instead of a silently swallowed pass,
+        # without blocking the rest of the job over what's a supplementary
+        # reporting step.
         if: (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && !startsWith(github.ref, 'refs/tags/')
         continue-on-error: true
         uses: actions/upload-code-coverage@v1
