@@ -26,6 +26,8 @@ HADOLINT_VERSION = 2.14.0
 GOVULNCHECK_VERSION = 1.5.0
 # https://github.com/koalaman/shellcheck/releases
 SHELLCHECK_VERSION = 0.11.0
+# https://github.com/aquasecurity/trivy/releases
+TRIVY_VERSION = 0.72.0
 
 ifeq ($(OS),Windows_NT)
 	DOCKERCOMPOSE_PACKAGE = https://github.com/docker/compose/releases/download/v$(DOCKERCOMPOSE_VERSION)/docker-compose-windows-x86_64.exe
@@ -34,6 +36,8 @@ ifeq ($(OS),Windows_NT)
 	HADOLINT_PACKAGE = https://github.com/hadolint/hadolint/releases/download/v$(HADOLINT_VERSION)/hadolint-windows-x86_64.exe
 	SHELLCHECK_PACKAGE = https://github.com/koalaman/shellcheck/releases/download/v$(SHELLCHECK_VERSION)/shellcheck-v$(SHELLCHECK_VERSION).zip
 	SHELLCHECK_ARCHIVE = build/archives/shellcheck.zip
+	TRIVY_PACKAGE = https://github.com/aquasecurity/trivy/releases/download/v$(TRIVY_VERSION)/trivy_$(TRIVY_VERSION)_windows-64bit.zip
+	TRIVY_ARCHIVE = build/archives/trivy.zip
 else
 	UNAME_S := $(shell uname -s)
 	UNAME_ARCH := $(shell uname -m)
@@ -44,14 +48,17 @@ else
 			CERTTOOL_PACKAGE = https://github.com/cloudfra/certtool/releases/download/v$(CERTTOOL_VERSION)/certtool-arm
 			HADOLINT_PACKAGE = https://github.com/hadolint/hadolint/releases/download/v$(HADOLINT_VERSION)/hadolint-linux-arm64
 			SHELLCHECK_PACKAGE = https://github.com/koalaman/shellcheck/releases/download/v$(SHELLCHECK_VERSION)/shellcheck-v$(SHELLCHECK_VERSION).linux.aarch64.tar.xz
+			TRIVY_PACKAGE = https://github.com/aquasecurity/trivy/releases/download/v$(TRIVY_VERSION)/trivy_$(TRIVY_VERSION)_Linux-ARM.tar.gz
 		else
 			DOCKERCOMPOSE_PACKAGE = https://github.com/docker/compose/releases/download/v$(DOCKERCOMPOSE_VERSION)/docker-compose-linux-x86_64
 			TERRAFORM_PACKAGE = https://releases.hashicorp.com/terraform/$(TERRAFORM_VERSION)/terraform_$(TERRAFORM_VERSION)_linux_amd64.zip
 			CERTTOOL_PACKAGE = https://github.com/cloudfra/certtool/releases/download/v$(CERTTOOL_VERSION)/certtool-amd64
 			HADOLINT_PACKAGE = https://github.com/hadolint/hadolint/releases/download/v$(HADOLINT_VERSION)/hadolint-linux-x86_64
 			SHELLCHECK_PACKAGE = https://github.com/koalaman/shellcheck/releases/download/v$(SHELLCHECK_VERSION)/shellcheck-v$(SHELLCHECK_VERSION).linux.x86_64.tar.xz
+			TRIVY_PACKAGE = https://github.com/aquasecurity/trivy/releases/download/v$(TRIVY_VERSION)/trivy_$(TRIVY_VERSION)_Linux-64bit.tar.gz
 		endif
 		SHELLCHECK_ARCHIVE = build/archives/shellcheck.tar.xz
+		TRIVY_ARCHIVE = build/archives/trivy.tar.gz
 	endif
 	ifeq ($(UNAME_S),Darwin)
 		DOCKERCOMPOSE_PACKAGE = https://github.com/docker/compose/releases/download/v$(DOCKERCOMPOSE_VERSION)/docker-compose-darwin-aarch64
@@ -60,6 +67,8 @@ else
 		HADOLINT_PACKAGE = https://github.com/hadolint/hadolint/releases/download/v$(HADOLINT_VERSION)/hadolint-macos-arm64
 		SHELLCHECK_PACKAGE = https://github.com/koalaman/shellcheck/releases/download/v$(SHELLCHECK_VERSION)/shellcheck-v$(SHELLCHECK_VERSION).darwin.aarch64.tar.xz
 		SHELLCHECK_ARCHIVE = build/archives/shellcheck.tar.xz
+		TRIVY_PACKAGE = https://github.com/aquasecurity/trivy/releases/download/v$(TRIVY_VERSION)/trivy_$(TRIVY_VERSION)_macOS-ARM64.tar.gz
+		TRIVY_ARCHIVE = build/archives/trivy.tar.gz
 	endif
 endif
 
@@ -239,6 +248,26 @@ endif
 	chmod +x $(TOOLCHAIN_BIN)/shellcheck$(EXE)
 	rm -rf $(TOOLCHAIN_DIR)/shellcheck-temp/
 
+$(TRIVY_ARCHIVE):
+	mkdir -p $(ARCHIVES_DIR)/
+	$(CURL) -o $@ -L $(TRIVY_PACKAGE)
+	touch $@
+
+# Also not a Go module; ships as an archive like shellcheck, but unlike
+# shellcheck the binary sits at the archive root with no versioned
+# subdirectory, so no --strip-components/-j is needed.
+build/toolchain/bin/trivy$(EXE): $(TRIVY_ARCHIVE)
+	mkdir -p $(TOOLCHAIN_BIN)
+	mkdir -p $(TOOLCHAIN_DIR)/trivy-temp/
+ifeq ($(HOST_OS),windows)
+	(cd $(TOOLCHAIN_DIR)/trivy-temp/ && unzip -q $(REPOSITORY_ROOT)/$<)
+else
+	tar -xzf $< -C $(TOOLCHAIN_DIR)/trivy-temp/
+endif
+	cp $(TOOLCHAIN_DIR)/trivy-temp/trivy$(EXE) $(TOOLCHAIN_BIN)/trivy$(EXE)
+	chmod +x $(TOOLCHAIN_BIN)/trivy$(EXE)
+	rm -rf $(TOOLCHAIN_DIR)/trivy-temp/
+
 build/bin/%: $(ASSETS)
 	GOOS=$(word 3, $(subst /, ,$(dir $@))) GOARCH=$(word 4, $(subst /, ,$(dir $@))) GOARM=$(subst v,,$(word 5, $(subst /, ,$(dir $@)))) CGO_ENABLED=0 $(GO) build -ldflags="-X 'github.com/cloudfra/template-go/internal.version=$(VERSION)' -X 'github.com/cloudfra/template-go/internal.buildstamp=$(BUILD_DATE)'" -o $@ cmd/$(basename $(notdir $@))/$(basename $(notdir $@)).go
 	touch $@
@@ -350,6 +379,18 @@ docker-images: $(ALL_DOCKER_IMAGES)
 docker-image-%: build/bin/linux/amd64/% ensure-builder
 	$(DOCKER) buildx build $(DOCKER_EXTRA_FLAGS) --platform linux/amd64 --build-arg BINARY_PATH=$< $(DOCKER_LABEL_ARGS) --build-arg BINARY_NAME=$* -f cmd/$*/Dockerfile -t $(REGISTRY)/$*:$(TAG) . $(DOCKER_PUSH)
 
+ALL_SCAN_IMAGES = $(foreach app,$(ALL_APPS),scan-image-$(app))
+scan-images: $(ALL_SCAN_IMAGES)
+
+# docker-image-%/linux-images/windows-images use plain `buildx build`, which
+# never loads the result into the local Docker daemon for ordinary (non-tag)
+# runs - so there's nothing there for trivy to scan. This target does its own
+# single-arch --load build purely so trivy has a local image to scan,
+# independent of the release push pipeline.
+scan-image-%: build/bin/linux/amd64/% build/toolchain/bin/trivy$(EXE) ensure-builder
+	$(DOCKER) buildx build $(DOCKER_EXTRA_FLAGS) --platform linux/amd64 --build-arg BINARY_PATH=$< $(DOCKER_LABEL_ARGS) --build-arg BINARY_NAME=$* -f cmd/$*/Dockerfile -t $(REGISTRY)/$*:$(TAG)-scan --load .
+	build/toolchain/bin/trivy$(EXE) image --severity HIGH,CRITICAL --exit-code 1 $(REGISTRY)/$*:$(TAG)-scan
+
 
 ALL_IMAGES = $(foreach app,$(ALL_APPS),$(REGISTRY)/$(app))
 # https://github.com/docker-library/official-images#architectures-other-than-amd64
@@ -386,7 +427,7 @@ windows-images: $(ALL_WINDOWS_IMAGES)
 windows-image-%: build/bin/windows/amd64/$$(call appname,$$*).exe ensure-builder
 	$(DOCKER) buildx build $(DOCKER_EXTRA_FLAGS) --platform windows/amd64 --build-arg BINARY_PATH=$< $(DOCKER_LABEL_ARGS) --build-arg BINARY_NAME=$(call appname,$*) -f cmd/$(call appname,$*)/Dockerfile.windows --build-arg WINDOWS_VERSION=$(call platform,$*) -t $(REGISTRY)/$(call appname,$*):$(TAG)-windows_amd64-$(call platform,$*) . $(DOCKER_PUSH)
 
-.PHONY: all tools assets protos windows-binaries run lint lint-go lint-terraform lint-docker lint-yaml lint-shell lint-vuln bench test tf-test test-deflake ensure-builder docker-images images linux-images windows-images upgrade-deps deps clean presubmit system-info release-binaries no-sudo
+.PHONY: all tools assets protos windows-binaries run lint lint-go lint-terraform lint-docker lint-yaml lint-shell lint-vuln bench test tf-test test-deflake ensure-builder docker-images scan-images images linux-images windows-images upgrade-deps deps clean presubmit system-info release-binaries no-sudo
 .SECONDEXPANSION:
 
 # "appname-linux_arm_v5" -> "linux_arm_v5"

@@ -69,6 +69,7 @@ package; the build system picks it up automatically.
 | `make lint` | Run the full lint suite (see Features) |
 | `make protos` | Generate code from `.proto` definitions |
 | `make docker-images` | Build a quick single-arch (`linux/amd64`) Docker image per app, tagged locally |
+| `make scan-images` | Build a local single-arch image per app and scan it with trivy, failing on HIGH/CRITICAL vulnerabilities |
 | `make images` | Build every supported Linux/Windows platform and merge them into one multi-arch manifest per app |
 | `make linux-images` / `make windows-images` | Build just the Linux or Windows platform images that `make images` merges |
 | `make release-binaries` | Build and code-sign release artifacts for every platform |
