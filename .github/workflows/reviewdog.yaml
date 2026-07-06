@@ -24,6 +24,10 @@ jobs:
   misspell:
     name: runner / misspell
     runs-on: ubuntu-latest
+    # Default reviewdog reporter (github-pr-check) posts via the Checks API.
+    permissions:
+      contents: read
+      checks: write
     timeout-minutes: 10
     steps:
       - name: Check out code.
@@ -46,6 +50,10 @@ jobs:
   hadolint:
     name: runner / hadolint
     runs-on: ubuntu-latest
+    # reporter: github-pr-review below posts inline PR review comments.
+    permissions:
+      contents: read
+      pull-requests: write
     timeout-minutes: 10
     steps:
       - name: Check out code
@@ -65,6 +73,9 @@ jobs:
   codespell:
     name: runner / codespell
     runs-on: ubuntu-latest
+    # Just runs and exits non-zero on hits; no PR annotations, no API calls.
+    permissions:
+      contents: read
     timeout-minutes: 10
     steps:
       - name: Check out code.
@@ -81,6 +92,10 @@ jobs:
   yamllint:
     name: runner / yamllint
     runs-on: ubuntu-latest
+    # reporter: github-pr-review below posts inline PR review comments.
+    permissions:
+      contents: read
+      pull-requests: write
     timeout-minutes: 10
     steps:
       - name: Check out code.
