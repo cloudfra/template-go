@@ -28,6 +28,21 @@ GOVULNCHECK_VERSION = 1.5.0
 SHELLCHECK_VERSION = 0.11.0
 # https://github.com/aquasecurity/trivy/releases
 TRIVY_VERSION = 0.72.0
+# https://github.com/golangci/golangci-lint/releases
+GOLANGCI_LINT_VERSION = 2.12.2
+# https://github.com/mvdan/gofumpt/releases
+GOFUMPT_VERSION = 0.10.0
+# https://github.com/mgechev/revive/releases
+REVIVE_VERSION = 1.15.0
+# https://github.com/terraform-linters/tflint/releases
+TFLINT_VERSION = 0.63.1
+# https://github.com/rhysd/actionlint/releases
+ACTIONLINT_VERSION = 1.7.12
+# https://github.com/goptics/vizb/releases
+VIZB_VERSION = 0.14.1
+# github.com/t-yuki/gocover-cobertura has no tagged releases (last commit
+# 2018) - pin the exact commit instead of floating on @latest.
+GOCOVER_COBERTURA_VERSION = aaee18c8195c3f2d90e5ef80ca918d265463842a
 
 ifeq ($(OS),Windows_NT)
 	DOCKERCOMPOSE_PACKAGE = https://github.com/docker/compose/releases/download/v$(DOCKERCOMPOSE_VERSION)/docker-compose-windows-x86_64.exe
@@ -156,7 +171,7 @@ build/packages/release.tar.gz: $(ALL_BINARIES)
 
 build/toolchain/bin/vizb$(EXE):
 	# https://github.com/goptics/vizb
-	GOBIN=$(TOOLCHAIN_BIN) $(GO_WITH_PROXY) install github.com/goptics/vizb@latest
+	GOBIN=$(TOOLCHAIN_BIN) $(GO_WITH_PROXY) install github.com/goptics/vizb@v$(VIZB_VERSION)
 
 build/archives/terraform.zip:
 	mkdir -p $(ARCHIVES_DIR)/
@@ -189,24 +204,24 @@ endif
 
 build/toolchain/bin/gocover-cobertura$(EXE):
 	mkdir -p $(dir $@)
-	GOBIN=$(dir $(REPOSITORY_ROOT)/$@) $(GO_WITH_PROXY) install github.com/t-yuki/gocover-cobertura@latest
+	GOBIN=$(dir $(REPOSITORY_ROOT)/$@) $(GO_WITH_PROXY) install github.com/t-yuki/gocover-cobertura@$(GOCOVER_COBERTURA_VERSION)
 
 # golangci-lint's own default config (errcheck, govet, ineffassign,
 # staticcheck, unused) already covers what a standalone staticcheck run
 # would, so it's the only Go correctness linter wired into `lint`.
 build/toolchain/bin/golangci-lint$(EXE):
 	mkdir -p $(dir $@)
-	GOBIN=$(dir $(REPOSITORY_ROOT)/$@) $(GO_WITH_PROXY) install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@latest
+	GOBIN=$(dir $(REPOSITORY_ROOT)/$@) $(GO_WITH_PROXY) install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v$(GOLANGCI_LINT_VERSION)
 
 # Stricter formatting than `go fmt` (gofmt superset).
 build/toolchain/bin/gofumpt$(EXE):
 	mkdir -p $(dir $@)
-	GOBIN=$(dir $(REPOSITORY_ROOT)/$@) $(GO_WITH_PROXY) install mvdan.cc/gofumpt@latest
+	GOBIN=$(dir $(REPOSITORY_ROOT)/$@) $(GO_WITH_PROXY) install mvdan.cc/gofumpt@v$(GOFUMPT_VERSION)
 
 # Style/doc-comment linter; not covered by golangci-lint's default config.
 build/toolchain/bin/revive$(EXE):
 	mkdir -p $(dir $@)
-	GOBIN=$(dir $(REPOSITORY_ROOT)/$@) $(GO_WITH_PROXY) install github.com/mgechev/revive@latest
+	GOBIN=$(dir $(REPOSITORY_ROOT)/$@) $(GO_WITH_PROXY) install github.com/mgechev/revive@v$(REVIVE_VERSION)
 
 build/toolchain/bin/govulncheck$(EXE):
 	mkdir -p $(dir $@)
@@ -214,11 +229,11 @@ build/toolchain/bin/govulncheck$(EXE):
 
 build/toolchain/bin/tflint$(EXE):
 	mkdir -p $(dir $@)
-	GOBIN=$(dir $(REPOSITORY_ROOT)/$@) $(GO_WITH_PROXY) install github.com/terraform-linters/tflint@latest
+	GOBIN=$(dir $(REPOSITORY_ROOT)/$@) $(GO_WITH_PROXY) install github.com/terraform-linters/tflint@v$(TFLINT_VERSION)
 
 build/toolchain/bin/actionlint$(EXE):
 	mkdir -p $(dir $@)
-	GOBIN=$(dir $(REPOSITORY_ROOT)/$@) $(GO_WITH_PROXY) install github.com/rhysd/actionlint/cmd/actionlint@latest
+	GOBIN=$(dir $(REPOSITORY_ROOT)/$@) $(GO_WITH_PROXY) install github.com/rhysd/actionlint/cmd/actionlint@v$(ACTIONLINT_VERSION)
 
 # Not a Go module, so it's fetched as a prebuilt binary like terraform/docker-compose above.
 build/toolchain/bin/hadolint$(EXE):
