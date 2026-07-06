@@ -19,6 +19,7 @@ jobs:
   misspell:
     name: runner / misspell
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Check out code.
         uses: actions/checkout@v7
@@ -40,6 +41,7 @@ jobs:
   hadolint:
     name: runner / hadolint
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Check out code
         uses: actions/checkout@v7
@@ -58,6 +60,7 @@ jobs:
   codespell:
     name: runner / codespell
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Check out code.
         uses: actions/checkout@v7
