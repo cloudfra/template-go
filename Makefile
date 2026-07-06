@@ -22,6 +22,8 @@ TERRAFORM_VERSION = 1.15.7
 CERTTOOL_VERSION = 0.2.2
 # https://github.com/hadolint/hadolint/releases
 HADOLINT_VERSION = 2.14.0
+# https://github.com/golang/vuln/releases
+GOVULNCHECK_VERSION = 1.5.0
 
 ifeq ($(OS),Windows_NT)
 	DOCKERCOMPOSE_PACKAGE = https://github.com/docker/compose/releases/download/v$(DOCKERCOMPOSE_VERSION)/docker-compose-windows-x86_64.exe
@@ -74,7 +76,7 @@ ASSETS = $(PROTOS)
 ALL_APPS = example
 
 TERRAFORM = $(REPOSITORY_ROOT)/build/toolchain/bin/terraform$(EXE)
-TOOLCHAIN = build/toolchain/bin/gocover-cobertura$(EXE) build/toolchain/bin/docker-compose$(EXE) build/toolchain/bin/terraform$(EXE) build/toolchain/bin/vizb$(EXE) build/toolchain/bin/certtool$(EXE) $(PROTOC_TOOLCHAIN)
+TOOLCHAIN = build/toolchain/bin/gocover-cobertura$(EXE) build/toolchain/bin/docker-compose$(EXE) build/toolchain/bin/terraform$(EXE) build/toolchain/bin/vizb$(EXE) build/toolchain/bin/certtool$(EXE) build/toolchain/bin/govulncheck$(EXE) $(PROTOC_TOOLCHAIN)
 
 GO_TEST_COUNT = 25
 
@@ -188,6 +190,10 @@ build/toolchain/bin/revive$(EXE):
 	mkdir -p $(dir $@)
 	GOBIN=$(dir $(REPOSITORY_ROOT)/$@) $(GO_WITH_PROXY) install github.com/mgechev/revive@latest
 
+build/toolchain/bin/govulncheck$(EXE):
+	mkdir -p $(dir $@)
+	GOBIN=$(dir $(REPOSITORY_ROOT)/$@) $(GO_WITH_PROXY) install golang.org/x/vuln/cmd/govulncheck@v$(GOVULNCHECK_VERSION)
+
 build/toolchain/bin/tflint$(EXE):
 	mkdir -p $(dir $@)
 	GOBIN=$(dir $(REPOSITORY_ROOT)/$@) $(GO_WITH_PROXY) install github.com/terraform-linters/tflint@latest
@@ -209,7 +215,7 @@ build/bin/%: $(ASSETS)
 run: cmd/example/example.go
 	$(GO) run cmd/example/example.go
 
-lint: lint-go lint-terraform lint-docker lint-pedantic
+lint: lint-go lint-terraform lint-docker lint-pedantic lint-vuln
 
 lint-terraform: build/toolchain/bin/terraform$(EXE) build/toolchain/bin/tflint$(EXE)
 	(cd install/terraform; $(TERRAFORM) fmt .)
@@ -228,6 +234,12 @@ lint-docker: build/toolchain/bin/hadolint$(EXE)
 lint-pedantic: build/toolchain/bin/revive$(EXE) build/toolchain/bin/actionlint$(EXE)
 	build/toolchain/bin/revive$(EXE) -set_exit_status ./...
 	build/toolchain/bin/actionlint$(EXE)
+
+# Unlike the rest of the lint/test path (which runs under $(GO)'s GOPROXY=off
+# to stay offline), govulncheck needs live network access to query vuln.go.dev
+# - do not route this through $(GO).
+lint-vuln: build/toolchain/bin/govulncheck$(EXE)
+	build/toolchain/bin/govulncheck$(EXE) ./...
 
 bench: $(TEST_ASSETS)
 	$(GO) test -bench=. -benchmem -tags testing ${SOURCE_DIRS}
@@ -330,7 +342,7 @@ windows-images: $(ALL_WINDOWS_IMAGES)
 windows-image-%: build/bin/windows/amd64/$$(call appname,$$*).exe ensure-builder
 	$(DOCKER) buildx build $(DOCKER_EXTRA_FLAGS) --platform windows/amd64 --build-arg BINARY_PATH=$< $(DOCKER_LABEL_ARGS) --build-arg BINARY_NAME=$(call appname,$*) -f cmd/$(call appname,$*)/Dockerfile.windows --build-arg WINDOWS_VERSION=$(call platform,$*) -t $(REGISTRY)/$(call appname,$*):$(TAG)-windows_amd64-$(call platform,$*) . $(DOCKER_PUSH)
 
-.PHONY: all tools assets protos windows-binaries run lint lint-go lint-terraform lint-docker lint-pedantic bench test tf-test test-deflake ensure-builder docker-images images linux-images windows-images upgrade-deps deps clean presubmit system-info release-binaries no-sudo
+.PHONY: all tools assets protos windows-binaries run lint lint-go lint-terraform lint-docker lint-pedantic lint-vuln bench test tf-test test-deflake ensure-builder docker-images images linux-images windows-images upgrade-deps deps clean presubmit system-info release-binaries no-sudo
 .SECONDEXPANSION:
 
 # "appname-linux_arm_v5" -> "linux_arm_v5"
