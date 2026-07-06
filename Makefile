@@ -259,6 +259,7 @@ lint-go: build/toolchain/bin/golangci-lint$(EXE) build/toolchain/bin/gofumpt$(EX
 	build/toolchain/bin/gofumpt$(EXE) -l -w .
 	build/toolchain/bin/golangci-lint$(EXE) run ./...
 	build/toolchain/bin/revive$(EXE) -set_exit_status ./...
+	$(GO) mod verify
 
 lint-docker: build/toolchain/bin/hadolint$(EXE)
 	$(FIND) cmd -iname 'Dockerfile*' -exec build/toolchain/bin/hadolint$(EXE) {} +
