@@ -110,3 +110,22 @@ jobs:
           # and maintains. third_party is vendored upstream sources, same
           # exclusion the misspell/codespell jobs above already apply.
           yamllint_flags: ".github/"
+
+  # https://github.com/actions/dependency-review-action
+  # Full functionality requires either a public repo or a private repo with
+  # GitHub Advanced Security licensed. This repo is private and doesn't have
+  # GHAS licensed (confirmed via API - same wall as branch protection), so
+  # until it goes public or GHAS is licensed this job will likely no-op or
+  # error on the dependency-graph lookup instead of actually screening PRs.
+  # It's added now so it activates automatically once that changes.
+  dependency-review:
+    name: runner / dependency-review
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - name: Check out code.
+        uses: actions/checkout@v7
+      - name: dependency-review
+        uses: actions/dependency-review-action@v5
