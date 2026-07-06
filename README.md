@@ -118,6 +118,22 @@ terraform plan -var=gcp_project_id=<your-project-id> -var=testing=true
 terraform apply -var=gcp_project_id=<your-project-id> -var=testing=true
 ```
 
+## GitHub repository setup
+
+`scripts/configure-github-repo.sh` applies the GitHub repository settings
+this template expects (branch cleanup on merge, auto-merge, Dependabot
+alerts/security updates, secret scanning, branch protection on `main`,
+etc.), so a repo created from this template can be brought in line with
+one command instead of clicking through Settings by hand:
+
+```bash
+scripts/configure-github-repo.sh OWNER/REPO
+```
+
+It's idempotent, and settings unavailable on a given plan (e.g. branch
+protection or secret scanning on a private repo without GitHub Advanced
+Security) are skipped with a warning rather than failing the run.
+
 ## License
 
 Licensed under the [Apache License, Version 2.0](LICENSE).
