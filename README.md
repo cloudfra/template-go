@@ -131,7 +131,8 @@ one command instead of clicking through Settings by hand. It infers
 scripts/configure-github-repo.sh
 ```
 
-Pass `--repo OWNER/REPO` to target a different repository instead.
+Pass `--repo OWNER/REPO` to target a different repository instead, or
+`--dry-run` to print what it would change without touching anything.
 
 It's idempotent, and settings unavailable on a given plan (e.g. branch
 protection or secret scanning on a private repo without GitHub Advanced

@@ -17,10 +17,11 @@
 # can be reproduced on any repo created from it (or restored here) with
 # one command instead of clicking through Settings by hand.
 #
-# Usage: scripts/configure-github-repo.sh [-r|--repo OWNER/REPO]
+# Usage: scripts/configure-github-repo.sh [-r|--repo OWNER/REPO] [-n|--dry-run]
 # Defaults to the `origin` remote of the current git repo; pass --repo to
 # target a different one. Requires `gh` to be authenticated with admin
-# rights on the target repo.
+# rights on the target repo. Pass --dry-run to print what would run
+# without changing anything.
 #
 # Safe to re-run: every step is idempotent. Settings that require a plan
 # this repo doesn't have (e.g. branch protection or secret scanning on a
@@ -32,7 +33,7 @@
 set -euo pipefail
 
 usage() {
-  echo "Usage: $0 [-r|--repo OWNER/REPO]" >&2
+  echo "Usage: $0 [-r|--repo OWNER/REPO] [-n|--dry-run]" >&2
 }
 
 # infer_repo reads OWNER/REPO from the `origin` remote's URL, so nobody
@@ -57,11 +58,16 @@ infer_repo() {
 }
 
 REPO=""
+DRY_RUN=false
 while [[ $# -gt 0 ]]; do
   case "$1" in
     -r | --repo)
       REPO="$2"
       shift 2
+      ;;
+    -n | --dry-run)
+      DRY_RUN=true
+      shift
       ;;
     -h | --help)
       usage
@@ -80,6 +86,21 @@ if [[ -z "$REPO" ]]; then
 fi
 
 echo "Configuring $REPO"
+if $DRY_RUN; then
+  echo "(dry run - no changes will be made)"
+fi
+
+# run prints the command it's about to invoke (to stderr, so it survives
+# the >/dev/null callers use to hide noisy JSON responses), then either
+# runs it for real or, under --dry-run, skips it and reports success so
+# callers don't mistake "we didn't try" for "the plan doesn't support it".
+run() {
+  echo "+ $*" >&2
+  if $DRY_RUN; then
+    return 0
+  fi
+  "$@"
+}
 
 # best_effort runs a command that may legitimately fail on some plans
 # (branch protection, secret scanning, GHAS-only features on private
@@ -95,33 +116,35 @@ best_effort() {
 ## Merge / branch hygiene ##
 
 # Delete head branches once their PR merges, so stale branches don't pile up.
-gh repo edit "$REPO" --delete-branch-on-merge
+run gh repo edit "$REPO" --delete-branch-on-merge
 
 # Let a PR branch be updated from its base with a button click instead of a
 # manual merge commit, so CI keeps testing against current main.
-gh repo edit "$REPO" --allow-update-branch
+run gh repo edit "$REPO" --allow-update-branch
 
 # Merge a PR itself the moment its required checks pass, instead of relying
 # on someone noticing and clicking merge. GitHub silently no-ops this one
 # instead of erroring when the plan doesn't support it (private repos need
 # Pro/Team/Enterprise), so check the result rather than trust the exit code.
-gh repo edit "$REPO" --enable-auto-merge >/dev/null
-if [[ "$(gh api "repos/$REPO" --jq .allow_auto_merge)" != "true" ]]; then
+run gh repo edit "$REPO" --enable-auto-merge >/dev/null
+if $DRY_RUN; then
+  echo "  (dry-run) skipping live check of whether auto-merge actually took effect"
+elif [[ "$(gh api "repos/$REPO" --jq .allow_auto_merge)" != "true" ]]; then
   echo "  (skipped) auto-merge - not available for this repo/plan"
 fi
 
 ## Dependency / vulnerability management ##
 
 # Dependabot alerts: flag dependencies with known vulnerabilities.
-gh api --method PUT "repos/$REPO/vulnerability-alerts"
+run gh api --method PUT "repos/$REPO/vulnerability-alerts"
 
 # Dependabot security updates: auto-PR fixes for the alerts above.
-gh api --method PUT "repos/$REPO/automated-security-fixes"
+run gh api --method PUT "repos/$REPO/automated-security-fixes"
 
 # Private vulnerability reporting: lets someone report a vulnerability
 # privately instead of filing a public issue.
 best_effort "private vulnerability reporting" \
-  gh api --method PUT "repos/$REPO/private-vulnerability-reporting"
+  run gh api --method PUT "repos/$REPO/private-vulnerability-reporting"
 
 ## Secret scanning ##
 # Free for public repos; on private repos it needs GitHub Advanced
@@ -129,11 +152,11 @@ best_effort "private vulnerability reporting" \
 # org-level decision.
 
 best_effort "secret scanning" \
-  gh api --method PATCH "repos/$REPO" \
+  run gh api --method PATCH "repos/$REPO" \
   -f "security_and_analysis[secret_scanning][status]=enabled"
 
 best_effort "secret scanning push protection" \
-  gh api --method PATCH "repos/$REPO" \
+  run gh api --method PATCH "repos/$REPO" \
   -f "security_and_analysis[secret_scanning_push_protection][status]=enabled"
 
 ## Branch protection ##
@@ -144,7 +167,7 @@ best_effort "secret scanning push protection" \
 # maintained solo, and requiring a second approver would just block
 # merges rather than improve quality.
 best_effort "branch protection on main" \
-  gh api --method PUT "repos/$REPO/branches/main/protection" --input - <<'EOF'
+  run gh api --method PUT "repos/$REPO/branches/main/protection" --input - <<'EOF'
 {
   "required_status_checks": {
     "strict": true,
