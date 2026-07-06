@@ -17,9 +17,10 @@
 # can be reproduced on any repo created from it (or restored here) with
 # one command instead of clicking through Settings by hand.
 #
-# Usage: scripts/configure-github-repo.sh [OWNER/REPO]
-# Defaults to the repo of the current directory's git remote. Requires
-# `gh` to be authenticated with admin rights on the target repo.
+# Usage: scripts/configure-github-repo.sh [-r|--repo OWNER/REPO]
+# Defaults to the `origin` remote of the current git repo; pass --repo to
+# target a different one. Requires `gh` to be authenticated with admin
+# rights on the target repo.
 #
 # Safe to re-run: every step is idempotent. Settings that require a plan
 # this repo doesn't have (e.g. branch protection or secret scanning on a
@@ -30,7 +31,53 @@
 
 set -euo pipefail
 
-REPO="${1:-$(gh repo view --json nameWithOwner --jq .nameWithOwner)}"
+usage() {
+  echo "Usage: $0 [-r|--repo OWNER/REPO]" >&2
+}
+
+# infer_repo reads OWNER/REPO from the `origin` remote's URL, so nobody
+# has to look it up and pass it by hand. Handles the SSH, ssh://, and
+# HTTPS forms `git remote -v` prints for a github.com remote.
+infer_repo() {
+  local url
+  if ! url="$(git remote get-url origin 2>/dev/null)"; then
+    echo "Not in a git repo with an 'origin' remote - pass --repo OWNER/REPO instead." >&2
+    exit 1
+  fi
+  case "$url" in
+    git@github.com:*) url="${url#git@github.com:}" ;;
+    ssh://git@github.com/*) url="${url#ssh://git@github.com/}" ;;
+    https://github.com/*) url="${url#https://github.com/}" ;;
+    *)
+      echo "Could not parse OWNER/REPO from origin remote '$url' - pass --repo OWNER/REPO instead." >&2
+      exit 1
+      ;;
+  esac
+  echo "${url%.git}"
+}
+
+REPO=""
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -r | --repo)
+      REPO="$2"
+      shift 2
+      ;;
+    -h | --help)
+      usage
+      exit 0
+      ;;
+    *)
+      echo "Unknown argument: $1" >&2
+      usage
+      exit 1
+      ;;
+  esac
+done
+
+if [[ -z "$REPO" ]]; then
+  REPO="$(infer_repo)"
+fi
 
 echo "Configuring $REPO"
 

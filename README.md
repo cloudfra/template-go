@@ -124,11 +124,14 @@ terraform apply -var=gcp_project_id=<your-project-id> -var=testing=true
 this template expects (branch cleanup on merge, auto-merge, Dependabot
 alerts/security updates, secret scanning, branch protection on `main`,
 etc.), so a repo created from this template can be brought in line with
-one command instead of clicking through Settings by hand:
+one command instead of clicking through Settings by hand. It infers
+`OWNER/REPO` from the `origin` remote, so it's enough to just run:
 
 ```bash
-scripts/configure-github-repo.sh OWNER/REPO
+scripts/configure-github-repo.sh
 ```
+
+Pass `--repo OWNER/REPO` to target a different repository instead.
 
 It's idempotent, and settings unavailable on a given plan (e.g. branch
 protection or secret scanning on a private repo without GitHub Advanced
