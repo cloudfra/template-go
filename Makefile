@@ -136,7 +136,7 @@ DOCKER_EXTRA_FLAGS = --builder $(BUILDX_BUILDER) --provenance=false --sbom=false
 # version/created/vcs-ref labels.
 DOCKER_LABEL_ARGS = --build-arg BUILD_DATE=$(BUILD_DATE) --build-arg VCS_REF=$(SHORT_SHA) --build-arg BUILD_VERSION=$(VERSION)
 
-all: $(ALL_BINARIES)
+all: no-sudo $(ALL_BINARIES)
 tools: $(TOOLCHAIN)
 assets: $(ASSETS)
 protos: $(PROTOS)
@@ -363,7 +363,7 @@ clean:
 	rm -rf build/
 	rm -rf output/
 
-presubmit: tools lint all test-deflake
+presubmit: no-sudo tools lint all test-deflake
 
 system-info:
 	@echo "Number of Processors"
@@ -379,7 +379,7 @@ ensure-builder:
 	-$(DOCKER) buildx create --name $(BUILDX_BUILDER)
 
 ALL_DOCKER_IMAGES = $(foreach app,$(ALL_APPS),docker-image-$(app))
-docker-images: $(ALL_DOCKER_IMAGES)
+docker-images: no-sudo $(ALL_DOCKER_IMAGES)
 docker-image-%: build/bin/linux/amd64/% ensure-builder
 	$(DOCKER) buildx build $(DOCKER_EXTRA_FLAGS) --platform linux/amd64 --build-arg BINARY_PATH=$< $(DOCKER_LABEL_ARGS) --build-arg BINARY_NAME=$* -f cmd/$*/Dockerfile -t $(REGISTRY)/$*:$(TAG) . $(DOCKER_PUSH)
 
@@ -398,7 +398,7 @@ scan-image-%: build/bin/linux/amd64/% build/toolchain/bin/trivy$(EXE) ensure-bui
 
 ALL_IMAGES = $(foreach app,$(ALL_APPS),$(REGISTRY)/$(app))
 # https://github.com/docker-library/official-images#architectures-other-than-amd64
-images: linux-images windows-images
+images: no-sudo linux-images windows-images
 	for image in $(ALL_IMAGES) ; do \
 		$(DOCKER) manifest rm $$image:$(TAG) 2>/dev/null || true ; \
 		$(DOCKER) manifest create $$image:$(TAG) $(foreach winver,$(WINDOWS_VERSIONS),$${image}:$(TAG)-windows_amd64-$(winver)) $(foreach platform,$(LINUX_PLATFORMS),$${image}:$(TAG)-$(subst /,_,$(platform))) ; \
