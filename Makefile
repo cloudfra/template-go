@@ -209,17 +209,25 @@ build/bin/%: $(ASSETS)
 run: cmd/example/example.go
 	$(GO) run cmd/example/example.go
 
-lint: build/toolchain/bin/terraform$(EXE) build/toolchain/bin/golangci-lint$(EXE) build/toolchain/bin/gofumpt$(EXE) build/toolchain/bin/revive$(EXE) build/toolchain/bin/tflint$(EXE) build/toolchain/bin/actionlint$(EXE) build/toolchain/bin/hadolint$(EXE)
+lint: lint-go lint-terraform lint-docker lint-pedantic
+
+lint-terraform: build/toolchain/bin/terraform$(EXE) build/toolchain/bin/tflint$(EXE)
+	(cd install/terraform; $(TERRAFORM) fmt .)
+	build/toolchain/bin/tflint$(EXE) --init --chdir install/terraform
+	build/toolchain/bin/tflint$(EXE) --chdir install/terraform
+
+lint-go: build/toolchain/bin/golangci-lint$(EXE) build/toolchain/bin/gofumpt$(EXE)
 	$(GO) fmt ./...
 	$(GO) vet ./...
 	build/toolchain/bin/gofumpt$(EXE) -l -w .
 	build/toolchain/bin/golangci-lint$(EXE) run ./...
-	build/toolchain/bin/revive$(EXE) -set_exit_status ./...
+
+lint-docker: build/toolchain/bin/hadolint$(EXE)
 	$(FIND) cmd -iname 'Dockerfile*' -exec build/toolchain/bin/hadolint$(EXE) {} +
+
+lint-pedantic: build/toolchain/bin/revive$(EXE) build/toolchain/bin/actionlint$(EXE)
+	build/toolchain/bin/revive$(EXE) -set_exit_status ./...
 	build/toolchain/bin/actionlint$(EXE)
-	(cd install/terraform; $(TERRAFORM) fmt .)
-	build/toolchain/bin/tflint$(EXE) --init --chdir install/terraform
-	build/toolchain/bin/tflint$(EXE) --chdir install/terraform
 
 bench: $(TEST_ASSETS)
 	$(GO) test -bench=. -benchmem -tags testing ${SOURCE_DIRS}
@@ -322,7 +330,7 @@ windows-images: $(ALL_WINDOWS_IMAGES)
 windows-image-%: build/bin/windows/amd64/$$(call appname,$$*).exe ensure-builder
 	$(DOCKER) buildx build $(DOCKER_EXTRA_FLAGS) --platform windows/amd64 --build-arg BINARY_PATH=$< $(DOCKER_LABEL_ARGS) --build-arg BINARY_NAME=$(call appname,$*) -f cmd/$(call appname,$*)/Dockerfile.windows --build-arg WINDOWS_VERSION=$(call platform,$*) -t $(REGISTRY)/$(call appname,$*):$(TAG)-windows_amd64-$(call platform,$*) . $(DOCKER_PUSH)
 
-.PHONY: all tools assets protos windows-binaries run lint bench test tf-test test-deflake ensure-builder docker-images images linux-images windows-images upgrade-deps deps clean presubmit system-info release-binaries no-sudo
+.PHONY: all tools assets protos windows-binaries run lint lint-go lint-terraform lint-docker lint-pedantic bench test tf-test test-deflake ensure-builder docker-images images linux-images windows-images upgrade-deps deps clean presubmit system-info release-binaries no-sudo
 .SECONDEXPANSION:
 
 # "appname-linux_arm_v5" -> "linux_arm_v5"
