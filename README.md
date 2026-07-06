@@ -14,10 +14,11 @@ boilerplate and start with working infrastructure on day one.
 
 - **Cross-compilation** — build binaries for every supported OS/arch
   (Linux, Windows, macOS, BSDs, and more) with a single `make` invocation.
-- **Signed release binaries** — `make release-binaries` code-signs every
-  release artifact (Windows via Authenticode, Linux via an embedded
-  detached signature) with a self-signed cert generated on demand, or
-  your own via `CODESIGN_CERT`/`CODESIGN_KEY`.
+- **Signed release binaries** — `make release-binaries` code-signs the
+  artifacts it can (all Windows architectures via Authenticode; only
+  `linux/386` and `linux/amd64` via an embedded detached signature) with
+  a self-signed cert generated on demand, or your own via
+  `CODESIGN_CERT`/`CODESIGN_KEY`. Every other platform is copied unsigned.
 - **Docker images** — package any binary defined under `cmd/` into a
   container image, either a quick single-arch build or a full
   multi-arch manifest merging every supported Linux/Windows platform.
@@ -72,7 +73,7 @@ package; the build system picks it up automatically.
 | `make scan-images` | Build a local single-arch image per app and scan it with trivy, failing on HIGH/CRITICAL vulnerabilities |
 | `make images` | Build every supported Linux/Windows platform and merge them into one multi-arch manifest per app |
 | `make linux-images` / `make windows-images` | Build just the Linux or Windows platform images that `make images` merges |
-| `make release-binaries` | Build and code-sign release artifacts for every platform |
+| `make release-binaries` | Build release artifacts for every platform, code-signing where supported (Windows, `linux/386`, `linux/amd64`) |
 | `make windows-binaries` | Build Windows binaries only |
 | `make tf-test` | Run Terraform tests |
 | `make presubmit` | Run the full suite of checks used in CI (tools, lint, build, test-deflake) |
@@ -88,14 +89,23 @@ make bench
 
 ## Code signing
 
-`make release-binaries` code-signs every Linux and Windows artifact it
-builds under `build/release/` (other platforms are copied unsigned).
-Windows binaries are Authenticode-signed with `osslsigncode`; Linux
-binaries get a detached CMS/PKCS7 signature embedded in a
-`.cloudfra_signature` ELF section via `objcopy`. Both require
-`osslsigncode`, `openssl`, and `binutils` (`objcopy`) to be installed —
-see the "Install Signing Dependencies" step in `deploy.yaml` for the
-packages CI installs.
+`make release-binaries` code-signs the release artifacts under
+`build/release/` where signing is supported, and copies everything else
+unsigned:
+
+- **Windows** (all architectures) — Authenticode-signed with `osslsigncode`.
+- **`linux/386` and `linux/amd64`** — get a detached CMS/PKCS7 signature
+  embedded in a `.cloudfra_signature` ELF section via `objcopy`.
+- **Everything else** (the remaining Linux architectures — arm, arm64,
+  mips\*, ppc\*, riscv64, loong64, s390x — plus darwin and the BSDs) is a
+  plain unsigned copy. Debian/Ubuntu's `binutils` package ships `objcopy`
+  built with only the x86 BFD backends, so it can't embed a signature
+  section into non-x86 ELF binaries (see `LINUX_OBJCOPY_SIGNABLE_PLATFORMS`
+  in the `Makefile`).
+
+Both signing paths require `osslsigncode`, `openssl`, and `binutils`
+(`objcopy`) to be installed — see the "Install Signing Dependencies" step
+in `deploy.yaml` for the packages CI installs.
 
 By default the cert/key pair is generated on demand at
 `build/certs/codesign.{crt,key}` using
