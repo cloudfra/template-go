@@ -246,25 +246,37 @@ build/bin/%: $(ASSETS)
 run: cmd/example/example.go
 	$(GO) run cmd/example/example.go
 
-lint: lint-go lint-terraform lint-docker lint-pedantic lint-vuln
+lint: lint-go lint-terraform lint-docker lint-yaml lint-shell lint-vuln
 
 lint-terraform: build/toolchain/bin/terraform$(EXE) build/toolchain/bin/tflint$(EXE)
 	(cd install/terraform; $(TERRAFORM) fmt .)
 	build/toolchain/bin/tflint$(EXE) --init --chdir install/terraform
 	build/toolchain/bin/tflint$(EXE) --chdir install/terraform
 
-lint-go: build/toolchain/bin/golangci-lint$(EXE) build/toolchain/bin/gofumpt$(EXE)
+lint-go: build/toolchain/bin/golangci-lint$(EXE) build/toolchain/bin/gofumpt$(EXE) build/toolchain/bin/revive$(EXE)
 	$(GO) fmt ./...
 	$(GO) vet ./...
 	build/toolchain/bin/gofumpt$(EXE) -l -w .
 	build/toolchain/bin/golangci-lint$(EXE) run ./...
+	build/toolchain/bin/revive$(EXE) -set_exit_status ./...
 
 lint-docker: build/toolchain/bin/hadolint$(EXE)
 	$(FIND) cmd -iname 'Dockerfile*' -exec build/toolchain/bin/hadolint$(EXE) {} +
 
-lint-pedantic: build/toolchain/bin/revive$(EXE) build/toolchain/bin/actionlint$(EXE) build/toolchain/bin/shellcheck$(EXE)
-	build/toolchain/bin/revive$(EXE) -set_exit_status ./...
-	build/toolchain/bin/actionlint$(EXE)
+# -shellcheck points explicitly at our pinned binary instead of relying on it
+# merely being resolvable via PATH, so `run:` script blocks embedded in
+# workflow YAML get checked by shellcheck too (there are no standalone .sh
+# scripts in this repo today - see lint-shell).
+lint-yaml: build/toolchain/bin/actionlint$(EXE) build/toolchain/bin/shellcheck$(EXE)
+	build/toolchain/bin/actionlint$(EXE) -shellcheck=$(REPOSITORY_ROOT)/build/toolchain/bin/shellcheck$(EXE)
+
+# No standalone shell scripts exist in this repo yet (embedded workflow
+# scripts are covered by lint-yaml's actionlint+shellcheck integration
+# instead), but this keeps shellcheck wired to something real for whenever a
+# script shows up under cmd/, install/, etc.
+lint-shell: build/toolchain/bin/shellcheck$(EXE)
+	@scripts="$$($(FIND) . -name '*.sh' -not -path './third_party/*' -not -path './build/*')"; \
+	if [ -n "$$scripts" ]; then build/toolchain/bin/shellcheck$(EXE) $$scripts; fi
 
 # Unlike the rest of the lint/test path (which runs under $(GO)'s GOPROXY=off
 # to stay offline), govulncheck needs live network access to query vuln.go.dev
@@ -373,7 +385,7 @@ windows-images: $(ALL_WINDOWS_IMAGES)
 windows-image-%: build/bin/windows/amd64/$$(call appname,$$*).exe ensure-builder
 	$(DOCKER) buildx build $(DOCKER_EXTRA_FLAGS) --platform windows/amd64 --build-arg BINARY_PATH=$< $(DOCKER_LABEL_ARGS) --build-arg BINARY_NAME=$(call appname,$*) -f cmd/$(call appname,$*)/Dockerfile.windows --build-arg WINDOWS_VERSION=$(call platform,$*) -t $(REGISTRY)/$(call appname,$*):$(TAG)-windows_amd64-$(call platform,$*) . $(DOCKER_PUSH)
 
-.PHONY: all tools assets protos windows-binaries run lint lint-go lint-terraform lint-docker lint-pedantic lint-vuln bench test tf-test test-deflake ensure-builder docker-images images linux-images windows-images upgrade-deps deps clean presubmit system-info release-binaries no-sudo
+.PHONY: all tools assets protos windows-binaries run lint lint-go lint-terraform lint-docker lint-yaml lint-shell lint-vuln bench test tf-test test-deflake ensure-builder docker-images images linux-images windows-images upgrade-deps deps clean presubmit system-info release-binaries no-sudo
 .SECONDEXPANSION:
 
 # "appname-linux_arm_v5" -> "linux_arm_v5"
