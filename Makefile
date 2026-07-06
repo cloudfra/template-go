@@ -291,7 +291,7 @@ benchmark.html: $(TEST_ASSETS) build/toolchain/bin/vizb$(EXE)
 	$(GO) test -json -bench=. -benchmem -tags testing ${SOURCE_DIRS} | build/toolchain/bin/vizb$(EXE) -o benchmark.html
 
 test: $(TEST_ASSETS)
-	$(GO) test -tags testing ${SOURCE_DIRS}
+	$(GO) test -shuffle=on -tags testing ${SOURCE_DIRS}
 
 tf-test: build/toolchain/bin/terraform$(EXE) $(TEST_ASSETS)
 	# -backend=false: main.tftest.hcl mocks the providers and never touches
@@ -301,7 +301,7 @@ tf-test: build/toolchain/bin/terraform$(EXE) $(TEST_ASSETS)
 	(cd install/terraform/; $(TERRAFORM) test)
 
 test-deflake: $(TEST_ASSETS)
-	CGO_ENABLED=1 $(GO) test -tags testing $(GO_RACE) ${SOURCE_DIRS} -cover -count $(GO_TEST_COUNT) -test.short
+	CGO_ENABLED=1 $(GO) test -shuffle=on -tags testing $(GO_RACE) ${SOURCE_DIRS} -cover -count $(GO_TEST_COUNT) -test.short
 
 coverage.txt: $(ASSETS)
 	for sfile in ${SOURCE_DIRS} ; do \
