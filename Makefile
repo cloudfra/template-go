@@ -24,12 +24,16 @@ CERTTOOL_VERSION = 0.2.2
 HADOLINT_VERSION = 2.14.0
 # https://github.com/golang/vuln/releases
 GOVULNCHECK_VERSION = 1.5.0
+# https://github.com/koalaman/shellcheck/releases
+SHELLCHECK_VERSION = 0.11.0
 
 ifeq ($(OS),Windows_NT)
 	DOCKERCOMPOSE_PACKAGE = https://github.com/docker/compose/releases/download/v$(DOCKERCOMPOSE_VERSION)/docker-compose-windows-x86_64.exe
 	TERRAFORM_PACKAGE = https://releases.hashicorp.com/terraform/$(TERRAFORM_VERSION)/terraform_$(TERRAFORM_VERSION)_windows_amd64.zip
 	CERTTOOL_PACKAGE = https://github.com/cloudfra/certtool/releases/download/v$(CERTTOOL_VERSION)/certtool-amd64.exe
 	HADOLINT_PACKAGE = https://github.com/hadolint/hadolint/releases/download/v$(HADOLINT_VERSION)/hadolint-windows-x86_64.exe
+	SHELLCHECK_PACKAGE = https://github.com/koalaman/shellcheck/releases/download/v$(SHELLCHECK_VERSION)/shellcheck-v$(SHELLCHECK_VERSION).zip
+	SHELLCHECK_ARCHIVE = build/archives/shellcheck.zip
 else
 	UNAME_S := $(shell uname -s)
 	UNAME_ARCH := $(shell uname -m)
@@ -39,18 +43,23 @@ else
 			TERRAFORM_PACKAGE = https://releases.hashicorp.com/terraform/$(TERRAFORM_VERSION)/terraform_$(TERRAFORM_VERSION)_linux_arm64.zip
 			CERTTOOL_PACKAGE = https://github.com/cloudfra/certtool/releases/download/v$(CERTTOOL_VERSION)/certtool-arm
 			HADOLINT_PACKAGE = https://github.com/hadolint/hadolint/releases/download/v$(HADOLINT_VERSION)/hadolint-linux-arm64
+			SHELLCHECK_PACKAGE = https://github.com/koalaman/shellcheck/releases/download/v$(SHELLCHECK_VERSION)/shellcheck-v$(SHELLCHECK_VERSION).linux.aarch64.tar.xz
 		else
 			DOCKERCOMPOSE_PACKAGE = https://github.com/docker/compose/releases/download/v$(DOCKERCOMPOSE_VERSION)/docker-compose-linux-x86_64
 			TERRAFORM_PACKAGE = https://releases.hashicorp.com/terraform/$(TERRAFORM_VERSION)/terraform_$(TERRAFORM_VERSION)_linux_amd64.zip
 			CERTTOOL_PACKAGE = https://github.com/cloudfra/certtool/releases/download/v$(CERTTOOL_VERSION)/certtool-amd64
 			HADOLINT_PACKAGE = https://github.com/hadolint/hadolint/releases/download/v$(HADOLINT_VERSION)/hadolint-linux-x86_64
+			SHELLCHECK_PACKAGE = https://github.com/koalaman/shellcheck/releases/download/v$(SHELLCHECK_VERSION)/shellcheck-v$(SHELLCHECK_VERSION).linux.x86_64.tar.xz
 		endif
+		SHELLCHECK_ARCHIVE = build/archives/shellcheck.tar.xz
 	endif
 	ifeq ($(UNAME_S),Darwin)
 		DOCKERCOMPOSE_PACKAGE = https://github.com/docker/compose/releases/download/v$(DOCKERCOMPOSE_VERSION)/docker-compose-darwin-aarch64
 		TERRAFORM_PACKAGE = https://releases.hashicorp.com/terraform/$(TERRAFORM_VERSION)/terraform_$(TERRAFORM_VERSION)_darwin_arm64.zip
 		CERTTOOL_PACKAGE = https://github.com/cloudfra/certtool/releases/download/v$(CERTTOOL_VERSION)/certtool-arm64-darwin
 		HADOLINT_PACKAGE = https://github.com/hadolint/hadolint/releases/download/v$(HADOLINT_VERSION)/hadolint-macos-arm64
+		SHELLCHECK_PACKAGE = https://github.com/koalaman/shellcheck/releases/download/v$(SHELLCHECK_VERSION)/shellcheck-v$(SHELLCHECK_VERSION).darwin.aarch64.tar.xz
+		SHELLCHECK_ARCHIVE = build/archives/shellcheck.tar.xz
 	endif
 endif
 
@@ -208,6 +217,28 @@ build/toolchain/bin/hadolint$(EXE):
 	$(CURL) -o $@ -L $(HADOLINT_PACKAGE)
 	chmod +x $@
 
+$(SHELLCHECK_ARCHIVE):
+	mkdir -p $(ARCHIVES_DIR)/
+	$(CURL) -o $@ -L $(SHELLCHECK_PACKAGE)
+	touch $@
+
+# Also not a Go module. Unlike hadolint, shellcheck ships as an archive (a
+# .zip with shellcheck.exe on Windows, a .tar.xz with a versioned
+# subdirectory everywhere else), so it needs extracting rather than a
+# straight download. actionlint auto-detects it on PATH (which already
+# includes this toolchain dir), so no separate lint invocation is needed.
+build/toolchain/bin/shellcheck$(EXE): $(SHELLCHECK_ARCHIVE)
+	mkdir -p $(TOOLCHAIN_BIN)
+	mkdir -p $(TOOLCHAIN_DIR)/shellcheck-temp/
+ifeq ($(HOST_OS),windows)
+	(cd $(TOOLCHAIN_DIR)/shellcheck-temp/ && unzip -q -j $(REPOSITORY_ROOT)/$<)
+else
+	tar -xJf $< -C $(TOOLCHAIN_DIR)/shellcheck-temp/ --strip-components=1
+endif
+	cp $(TOOLCHAIN_DIR)/shellcheck-temp/shellcheck$(EXE) $(TOOLCHAIN_BIN)/shellcheck$(EXE)
+	chmod +x $(TOOLCHAIN_BIN)/shellcheck$(EXE)
+	rm -rf $(TOOLCHAIN_DIR)/shellcheck-temp/
+
 build/bin/%: $(ASSETS)
 	GOOS=$(word 3, $(subst /, ,$(dir $@))) GOARCH=$(word 4, $(subst /, ,$(dir $@))) GOARM=$(subst v,,$(word 5, $(subst /, ,$(dir $@)))) CGO_ENABLED=0 $(GO) build -ldflags="-X 'github.com/cloudfra/template-go/internal.version=$(VERSION)' -X 'github.com/cloudfra/template-go/internal.buildstamp=$(BUILD_DATE)'" -o $@ cmd/$(basename $(notdir $@))/$(basename $(notdir $@)).go
 	touch $@
@@ -215,25 +246,37 @@ build/bin/%: $(ASSETS)
 run: cmd/example/example.go
 	$(GO) run cmd/example/example.go
 
-lint: lint-go lint-terraform lint-docker lint-pedantic lint-vuln
+lint: lint-go lint-terraform lint-docker lint-yaml lint-shell lint-vuln
 
 lint-terraform: build/toolchain/bin/terraform$(EXE) build/toolchain/bin/tflint$(EXE)
 	(cd install/terraform; $(TERRAFORM) fmt .)
 	build/toolchain/bin/tflint$(EXE) --init --chdir install/terraform
 	build/toolchain/bin/tflint$(EXE) --chdir install/terraform
 
-lint-go: build/toolchain/bin/golangci-lint$(EXE) build/toolchain/bin/gofumpt$(EXE)
+lint-go: build/toolchain/bin/golangci-lint$(EXE) build/toolchain/bin/gofumpt$(EXE) build/toolchain/bin/revive$(EXE)
 	$(GO) fmt ./...
 	$(GO) vet ./...
 	build/toolchain/bin/gofumpt$(EXE) -l -w .
 	build/toolchain/bin/golangci-lint$(EXE) run ./...
+	build/toolchain/bin/revive$(EXE) -set_exit_status ./...
 
 lint-docker: build/toolchain/bin/hadolint$(EXE)
 	$(FIND) cmd -iname 'Dockerfile*' -exec build/toolchain/bin/hadolint$(EXE) {} +
 
-lint-pedantic: build/toolchain/bin/revive$(EXE) build/toolchain/bin/actionlint$(EXE)
-	build/toolchain/bin/revive$(EXE) -set_exit_status ./...
-	build/toolchain/bin/actionlint$(EXE)
+# -shellcheck points explicitly at our pinned binary instead of relying on it
+# merely being resolvable via PATH, so `run:` script blocks embedded in
+# workflow YAML get checked by shellcheck too (there are no standalone .sh
+# scripts in this repo today - see lint-shell).
+lint-yaml: build/toolchain/bin/actionlint$(EXE) build/toolchain/bin/shellcheck$(EXE)
+	build/toolchain/bin/actionlint$(EXE) -shellcheck=$(REPOSITORY_ROOT)/build/toolchain/bin/shellcheck$(EXE)
+
+# No standalone shell scripts exist in this repo yet (embedded workflow
+# scripts are covered by lint-yaml's actionlint+shellcheck integration
+# instead), but this keeps shellcheck wired to something real for whenever a
+# script shows up under cmd/, install/, etc.
+lint-shell: build/toolchain/bin/shellcheck$(EXE)
+	@scripts="$$($(FIND) . -name '*.sh' -not -path './third_party/*' -not -path './build/*')"; \
+	if [ -n "$$scripts" ]; then build/toolchain/bin/shellcheck$(EXE) $$scripts; fi
 
 # Unlike the rest of the lint/test path (which runs under $(GO)'s GOPROXY=off
 # to stay offline), govulncheck needs live network access to query vuln.go.dev
@@ -342,7 +385,7 @@ windows-images: $(ALL_WINDOWS_IMAGES)
 windows-image-%: build/bin/windows/amd64/$$(call appname,$$*).exe ensure-builder
 	$(DOCKER) buildx build $(DOCKER_EXTRA_FLAGS) --platform windows/amd64 --build-arg BINARY_PATH=$< $(DOCKER_LABEL_ARGS) --build-arg BINARY_NAME=$(call appname,$*) -f cmd/$(call appname,$*)/Dockerfile.windows --build-arg WINDOWS_VERSION=$(call platform,$*) -t $(REGISTRY)/$(call appname,$*):$(TAG)-windows_amd64-$(call platform,$*) . $(DOCKER_PUSH)
 
-.PHONY: all tools assets protos windows-binaries run lint lint-go lint-terraform lint-docker lint-pedantic lint-vuln bench test tf-test test-deflake ensure-builder docker-images images linux-images windows-images upgrade-deps deps clean presubmit system-info release-binaries no-sudo
+.PHONY: all tools assets protos windows-binaries run lint lint-go lint-terraform lint-docker lint-yaml lint-shell lint-vuln bench test tf-test test-deflake ensure-builder docker-images images linux-images windows-images upgrade-deps deps clean presubmit system-info release-binaries no-sudo
 .SECONDEXPANSION:
 
 # "appname-linux_arm_v5" -> "linux_arm_v5"
