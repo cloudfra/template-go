@@ -71,3 +71,22 @@ jobs:
           # codespell's dictionary is broad enough to flag real typos in it
           # that aren't ours to fix.
           skip: "./.git,./go.sum,./go.mod,./third_party"
+
+  # https://github.com/marketplace/actions/run-yamllint-with-reviewdog
+  yamllint:
+    name: runner / yamllint
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out code.
+        uses: actions/checkout@v7
+      - name: yamllint
+        # https://github.com/reviewdog/action-yamllint
+        uses: reviewdog/action-yamllint@v1
+        with:
+          github_token: ${{ secrets.github_token }}
+          reporter: github-pr-review # Default is github-pr-check
+          # Workflow/dependabot/actionlint config - the YAML this repo owns
+          # and maintains. third_party is vendored upstream sources, same
+          # exclusion the misspell/codespell jobs above already apply.
+          yamllint_flags: ".github/"
