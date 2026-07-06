@@ -213,6 +213,8 @@ jobs:
   build-windows:
     name: "Build Windows"
     runs-on: ["self-hosted", "windows"]
+    permissions:
+      contents: read
     timeout-minutes: 20
     steps:
       - name: Checkout
