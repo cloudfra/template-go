@@ -117,6 +117,19 @@ jobs:
       - name: Build Binaries
         run: make all -j"$(nproc)"
 
+      - name: Set up Docker Buildx (Scan)
+        # https://github.com/docker/setup-buildx-action
+        # Runs unconditionally (including on pull requests), unlike the
+        # push-pipeline Buildx setup below - vulnerability scanning needs to
+        # catch issues before merge, not just before a release push.
+        uses: docker/setup-buildx-action@v4
+
+      - name: Scan Container Image
+        # Builds a local single-arch image with --load purely so trivy has
+        # something to scan; independent of the multi-arch push pipeline
+        # further down, which never loads images into the local daemon.
+        run: make scan-images
+
       - name: Install Signing Dependencies
         run: sudo apt-get update && sudo apt-get install -y osslsigncode binutils openssl
 
