@@ -87,6 +87,34 @@ make test
 make bench
 ```
 
+## Simulating CI locally
+
+[`gh act`](https://github.com/nektos/gh-act) (a `gh` CLI extension wrapping
+[nektos/act](https://github.com/nektos/act)) runs this repo's actual
+`.github/workflows/*.yaml` files locally in Docker, rather than
+reimplementing CI's logic elsewhere:
+
+```bash
+gh extension install nektos/gh-act
+gh act pull_request -W .github/workflows/reviewdog.yaml --secret GITHUB_TOKEN=$(gh auth token)
+```
+
+**Known limitations, both confirmed by hand:**
+
+- `deploy.yaml` (the main build/lint/test/release pipeline) currently fails
+  to parse under `act`: its schema validator doesn't yet recognize the
+  `code-quality` permission scope (the same very-new GitHub Actions feature
+  `make lint-yaml` already has to `-ignore` for `actionlint`), and that one
+  unknown property cascades into spurious "Unknown Property" errors for the
+  rest of the job. It also targets `runs-on: [self-hosted, ...]` runners,
+  which `act` can't resolve without an explicit `-P <label>=<image>`
+  mapping even once the schema issue is fixed.
+- `reviewdog.yaml` parses and its jobs really execute (pulls the real
+  action code, runs it in Docker) - but steps that call back to the GitHub
+  API, like reviewdog posting check results, need a real `GITHUB_TOKEN`
+  *and* correct repo/event context to fully succeed, not just the token
+  shown above.
+
 ## Code signing
 
 `make release-binaries` code-signs the release artifacts under
