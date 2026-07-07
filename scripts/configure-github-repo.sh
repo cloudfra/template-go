@@ -142,7 +142,12 @@ run gh api --method PUT "repos/$REPO/vulnerability-alerts"
 run gh api --method PUT "repos/$REPO/automated-security-fixes"
 
 # Private vulnerability reporting: lets someone report a vulnerability
-# privately instead of filing a public issue.
+# privately instead of filing a public issue. Unlike the GHAS-gated
+# features below, this isn't a licensing/plan check GitHub can pass or
+# fail with an explanation - it 404s unconditionally on private
+# repositories (confirmed against GitHub's docs), because the feature
+# is restricted to public repos, full stop. See SECURITY.md for the
+# fallback reporting path this repo uses until it goes public.
 best_effort "private vulnerability reporting" \
   run gh api --method PUT "repos/$REPO/private-vulnerability-reporting"
 
