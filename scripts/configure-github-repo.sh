@@ -166,6 +166,14 @@ best_effort "secret scanning push protection" \
 # Required reviews are deliberately left out: this template is currently
 # maintained solo, and requiring a second approver would just block
 # merges rather than improve quality.
+#
+# Keep this context list in sync with the jobs actually defined in
+# deploy.yaml/reviewdog.yaml - it doesn't derive from them automatically,
+# so a renamed/added/removed job silently drifts out of sync otherwise
+# (see #64, which is how runner / yamllint ended up missing here).
+# runner / dependency-review is deliberately left out: it needs GitHub
+# Advanced Security and always fails without it (see #14/#49), so
+# requiring it would block every merge once this actually takes effect.
 best_effort "branch protection on main" \
   run gh api --method PUT "repos/$REPO/branches/main/protection" --input - <<'EOF'
 {
@@ -176,7 +184,8 @@ best_effort "branch protection on main" \
       "Build Windows",
       "runner / misspell",
       "runner / hadolint",
-      "runner / codespell"
+      "runner / codespell",
+      "runner / yamllint"
     ]
   },
   "enforce_admins": false,
