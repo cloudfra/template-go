@@ -77,6 +77,8 @@ package; the build system picks it up automatically.
 | `make windows-binaries` | Build Windows binaries only |
 | `make tf-test` | Run Terraform tests |
 | `make presubmit` | Run the full suite of checks used in CI (tools, lint, build, test-deflake) |
+| `make ci` | Simulate `deploy.yaml`'s "Build Linux" CI job locally, as closely as is safe to do outside GitHub Actions (skips artifact/registry/release publishing - see the comment above the target) |
+| `make ci-windows` | Simulate `deploy.yaml`'s "Build Windows" CI job; only meaningful run on an actual Windows host |
 | `make clean` | Remove build outputs |
 | `make deps` / `make upgrade-deps` | Install / upgrade Go module dependencies |
 

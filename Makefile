@@ -371,6 +371,48 @@ clean:
 
 presubmit: no-sudo tools lint all test-deflake
 
+# Mirrors deploy.yaml's "Build Linux" job, in the same order, as closely as
+# is safe/possible to run on a local machine: every make-invoked step the
+# job runs. Skipped entirely:
+#   - Fix mod cache permissions/Checkout/Setup Go: CI-runner-only setup,
+#     nothing to simulate locally.
+#   - Publish Benchmark/Push Code Coverage/Upload Coverage Report: upload
+#     build artifacts to GitHub or push to Codecov - need a real PR/
+#     CODECOV_TOKEN and have no meaningful local equivalent.
+#   - Everything from "Login to GitHub Container Registry" through "Push
+#     Images": logs into Docker Hub/GHCR and publishes a GitHub
+#     Release/pushes images - real credentials, hard to reverse once
+#     pushed, and not something a local run should ever do implicitly.
+# "Install Signing Dependencies" (apt-get osslsigncode/binutils/openssl)
+# is also skipped - installing system packages isn't this Makefile's
+# call to make silently. Install them yourself first if you want
+# `release-binaries` below to actually sign rather than plain-copy.
+ci: no-sudo
+	make system-info
+	make clean
+	make deps
+	make lint
+	make deps tools -j"$(shell nproc)"
+	make tf-test
+	make test
+	make test-deflake
+	make coverage.txt coverage.xml
+	make benchmark.html
+	make all -j"$(shell nproc)"
+	make scan-images
+	make build/packages/release.tar.gz
+	make release-binaries
+
+# Mirrors deploy.yaml's "Build Windows" job. Only meaningful run on an
+# actual Windows host, same as every other windows-binaries/EXE-gated
+# target in this Makefile - there's no local equivalent of a Windows
+# runner from Linux/macOS.
+ci-windows:
+	make windows-binaries -j4
+	make test
+	make GO_TEST_COUNT=5 test-deflake
+	make benchmark.html
+
 system-info:
 	@echo "Number of Processors"
 	@echo "$(shell nproc)"
@@ -437,7 +479,7 @@ windows-images: $(ALL_WINDOWS_IMAGES)
 windows-image-%: build/bin/windows/amd64/$$(call appname,$$*).exe ensure-builder
 	$(DOCKER) buildx build $(DOCKER_EXTRA_FLAGS) --platform windows/amd64 --build-arg BINARY_PATH=$< $(DOCKER_LABEL_ARGS) --build-arg BINARY_NAME=$(call appname,$*) -f cmd/$(call appname,$*)/Dockerfile.windows --build-arg WINDOWS_VERSION=$(call platform,$*) -t $(REGISTRY)/$(call appname,$*):$(TAG)-windows_amd64-$(call platform,$*) . $(DOCKER_PUSH)
 
-.PHONY: all tools assets protos windows-binaries run lint lint-go lint-terraform lint-docker lint-yaml lint-shell lint-vuln bench test tf-test test-deflake ensure-builder docker-images scan-images images linux-images windows-images upgrade-deps deps clean presubmit system-info release-binaries no-sudo
+.PHONY: all tools assets protos windows-binaries run lint lint-go lint-terraform lint-docker lint-yaml lint-shell lint-vuln bench test tf-test test-deflake ensure-builder docker-images scan-images images linux-images windows-images upgrade-deps deps clean presubmit ci ci-windows system-info release-binaries no-sudo
 .SECONDEXPANSION:
 
 # "appname-linux_arm_v5" -> "linux_arm_v5"
