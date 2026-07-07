@@ -86,23 +86,7 @@ jobs:
         run: make benchmark.html
 
       - name: Benchmark Summary
-        # Actions artifacts are zip-wrapped and buried behind a few clicks
-        # (Actions tab -> run -> Artifacts -> download -> unzip), so nothing
-        # about a regression is visible without deliberately going and
-        # looking. Re-running the benchmarks in text mode is cheap for this
-        # repo's current (tiny) suite; if that stops being true, parse this
-        # from the JSON make benchmark.html already generated instead of
-        # running go test twice.
-        run: |
-          {
-            echo "### Benchmark results (Linux)"
-            echo
-            echo '```'
-            go test -run='^$' -bench=. -benchmem -tags testing ./...
-            echo '```'
-            echo
-            echo "Full interactive charts: download the \`benchmark-linux.html\` artifact from this run (see below)."
-          } >> "$GITHUB_STEP_SUMMARY"
+        run: make benchmark-summary
 
       - name: Publish Benchmark (7 Days)
         # https://github.com/actions/upload-artifact
@@ -285,23 +269,7 @@ jobs:
         run: make benchmark.html
 
       - name: Benchmark Summary
-        # See the Linux job's equivalent step for why this exists. pwsh
-        # (the default shell on Windows runners) can't reuse the bash
-        # heredoc there, hence the separate implementation.
-        shell: pwsh
-        run: |
-          $output = go test -run='^$' -bench=. -benchmem -tags testing ./... 2>&1 | Out-String
-          $fence = '```'
-          $lines = @(
-            '### Benchmark results (Windows)'
-            ''
-            $fence
-            $output.TrimEnd()
-            $fence
-            ''
-            'Full interactive charts: download the `benchmark-windows.html` artifact from this run (see below).'
-          )
-          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value ($lines -join "`n") -Encoding utf8
+        run: make benchmark-summary
 
       - name: Publish Benchmark (7 Days)
         # https://github.com/actions/upload-artifact
