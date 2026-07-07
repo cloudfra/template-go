@@ -277,10 +277,16 @@ run: cmd/example/example.go
 
 lint: lint-go lint-terraform lint-docker lint-yaml lint-shell lint-vuln
 
-lint-terraform: build/toolchain/bin/terraform$(EXE) build/toolchain/bin/tflint$(EXE)
+lint-terraform: build/toolchain/bin/terraform$(EXE) build/toolchain/bin/tflint$(EXE) build/toolchain/bin/trivy$(EXE)
 	(cd install/terraform; $(TERRAFORM) fmt .)
 	build/toolchain/bin/tflint$(EXE) --init --chdir install/terraform
 	build/toolchain/bin/tflint$(EXE) --chdir install/terraform
+	# tflint covers style/correctness, not security misconfigurations (overly
+	# permissive IAM, public storage buckets, missing encryption, etc.) -
+	# trivy config (successor to the now-maintenance-mode tfsec, folded into
+	# trivy) covers that instead, reusing the same tool already pinned for
+	# image scanning rather than adding a second, redundant IaC scanner.
+	build/toolchain/bin/trivy$(EXE) config --severity HIGH,CRITICAL --exit-code 1 install/terraform
 
 lint-go: build/toolchain/bin/golangci-lint$(EXE) build/toolchain/bin/gofumpt$(EXE) build/toolchain/bin/revive$(EXE)
 	$(GO) fmt ./...
