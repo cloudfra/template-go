@@ -15,6 +15,9 @@
 package example
 
 import (
+	"io"
+	"log"
+	"os"
 	"testing"
 )
 
@@ -25,6 +28,12 @@ func TestRun(t *testing.T) {
 }
 
 func BenchmarkRun(b *testing.B) {
+	// Run logs on every call; left at its default os.Stderr output, one
+	// log line per iteration floods benchmark output (plain text or
+	// -json) with ~b.N lines of noise, burying the actual result line.
+	log.SetOutput(io.Discard)
+	defer log.SetOutput(os.Stderr)
+
 	for b.Loop() {
 		if err := Run(Args{}); err != nil {
 			b.Errorf("Run() failed, %s", err)
