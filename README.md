@@ -29,10 +29,10 @@ boilerplate and start with working infrastructure on day one.
   for provisioning test and production environments.
 - **CI included** — GitHub Actions workflow (`.github/workflows/deploy.yaml`)
   that builds, lints, and tests on every push and pull request.
-- **Enforced linting** — `make lint` runs gofmt/go vet, gofumpt,
-  golangci-lint, revive, hadolint, actionlint, govulncheck, and
-  tflint/terraform fmt, downloading its own toolchain so it's reproducible
-  locally and in CI.
+- **Enforced linting** — `make lint` runs gofmt, gofumpt, golangci-lint,
+  revive, hadolint, actionlint, govulncheck, tflint/terraform fmt, and
+  trivy config (Terraform misconfiguration scanning), downloading its own
+  toolchain so it's reproducible locally and in CI.
 
 ## Getting started
 
