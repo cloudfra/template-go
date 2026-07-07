@@ -110,3 +110,28 @@ jobs:
           # and maintains. third_party is vendored upstream sources, same
           # exclusion the misspell/codespell jobs above already apply.
           yamllint_flags: ".github/"
+
+  # https://github.com/actions/dependency-review-action
+  # Full functionality (failing the job on vulnerable/incompatible deps)
+  # requires either a public repo or a private repo with GitHub Advanced
+  # Security licensed. This repo is private without GHAS (confirmed via API
+  # - same wall as branch protection), so the dependency-graph lookup this
+  # action needs hard-errors with "Dependency review is not supported on
+  # this repository" - not a soft warning, so without the guard below this
+  # job fails on every single PR regardless of the actual dependency change.
+  # `continue-on-error` is keyed off `github.event.repository.private` so
+  # this asserts degraded (non-blocking) mode automatically while private,
+  # and full (blocking) mode with zero further changes once the repo goes
+  # public or GHAS gets licensed.
+  dependency-review:
+    name: runner / dependency-review
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - name: Check out code.
+        uses: actions/checkout@v7
+      - name: dependency-review
+        uses: actions/dependency-review-action@v5
+        continue-on-error: ${{ github.event.repository.private }}
