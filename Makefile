@@ -13,65 +13,9 @@
 # limitations under the License.
 
 include proto.mk
+include toolchain.mk
 
-# https://github.com/docker/compose/releases
-DOCKERCOMPOSE_VERSION = 5.3.0
-# https://developer.hashicorp.com/terraform/install
-TERRAFORM_VERSION = 1.15.7
-# https://github.com/cloudfra/certtool/releases
-CERTTOOL_VERSION = 0.2.2
-# https://github.com/hadolint/hadolint/releases
-HADOLINT_VERSION = 2.14.0
-# https://github.com/golang/vuln/releases
-GOVULNCHECK_VERSION = 1.5.0
-# https://github.com/koalaman/shellcheck/releases
-SHELLCHECK_VERSION = 0.11.0
-# https://github.com/aquasecurity/trivy/releases
-TRIVY_VERSION = 0.72.0
-
-ifeq ($(OS),Windows_NT)
-	DOCKERCOMPOSE_PACKAGE = https://github.com/docker/compose/releases/download/v$(DOCKERCOMPOSE_VERSION)/docker-compose-windows-x86_64.exe
-	TERRAFORM_PACKAGE = https://releases.hashicorp.com/terraform/$(TERRAFORM_VERSION)/terraform_$(TERRAFORM_VERSION)_windows_amd64.zip
-	CERTTOOL_PACKAGE = https://github.com/cloudfra/certtool/releases/download/v$(CERTTOOL_VERSION)/certtool-amd64.exe
-	HADOLINT_PACKAGE = https://github.com/hadolint/hadolint/releases/download/v$(HADOLINT_VERSION)/hadolint-windows-x86_64.exe
-	SHELLCHECK_PACKAGE = https://github.com/koalaman/shellcheck/releases/download/v$(SHELLCHECK_VERSION)/shellcheck-v$(SHELLCHECK_VERSION).zip
-	SHELLCHECK_ARCHIVE = build/archives/shellcheck.zip
-	TRIVY_PACKAGE = https://github.com/aquasecurity/trivy/releases/download/v$(TRIVY_VERSION)/trivy_$(TRIVY_VERSION)_windows-64bit.zip
-	TRIVY_ARCHIVE = build/archives/trivy.zip
-else
-	UNAME_S := $(shell uname -s)
-	UNAME_ARCH := $(shell uname -m)
-	ifeq ($(UNAME_S),Linux)
-		ifeq ($(UNAME_ARCH),arm)
-			DOCKERCOMPOSE_PACKAGE = https://github.com/docker/compose/releases/download/v$(DOCKERCOMPOSE_VERSION)/docker-compose-linux-aarch64
-			TERRAFORM_PACKAGE = https://releases.hashicorp.com/terraform/$(TERRAFORM_VERSION)/terraform_$(TERRAFORM_VERSION)_linux_arm64.zip
-			CERTTOOL_PACKAGE = https://github.com/cloudfra/certtool/releases/download/v$(CERTTOOL_VERSION)/certtool-arm
-			HADOLINT_PACKAGE = https://github.com/hadolint/hadolint/releases/download/v$(HADOLINT_VERSION)/hadolint-linux-arm64
-			SHELLCHECK_PACKAGE = https://github.com/koalaman/shellcheck/releases/download/v$(SHELLCHECK_VERSION)/shellcheck-v$(SHELLCHECK_VERSION).linux.aarch64.tar.xz
-			TRIVY_PACKAGE = https://github.com/aquasecurity/trivy/releases/download/v$(TRIVY_VERSION)/trivy_$(TRIVY_VERSION)_Linux-ARM.tar.gz
-		else
-			DOCKERCOMPOSE_PACKAGE = https://github.com/docker/compose/releases/download/v$(DOCKERCOMPOSE_VERSION)/docker-compose-linux-x86_64
-			TERRAFORM_PACKAGE = https://releases.hashicorp.com/terraform/$(TERRAFORM_VERSION)/terraform_$(TERRAFORM_VERSION)_linux_amd64.zip
-			CERTTOOL_PACKAGE = https://github.com/cloudfra/certtool/releases/download/v$(CERTTOOL_VERSION)/certtool-amd64
-			HADOLINT_PACKAGE = https://github.com/hadolint/hadolint/releases/download/v$(HADOLINT_VERSION)/hadolint-linux-x86_64
-			SHELLCHECK_PACKAGE = https://github.com/koalaman/shellcheck/releases/download/v$(SHELLCHECK_VERSION)/shellcheck-v$(SHELLCHECK_VERSION).linux.x86_64.tar.xz
-			TRIVY_PACKAGE = https://github.com/aquasecurity/trivy/releases/download/v$(TRIVY_VERSION)/trivy_$(TRIVY_VERSION)_Linux-64bit.tar.gz
-		endif
-		SHELLCHECK_ARCHIVE = build/archives/shellcheck.tar.xz
-		TRIVY_ARCHIVE = build/archives/trivy.tar.gz
-	endif
-	ifeq ($(UNAME_S),Darwin)
-		DOCKERCOMPOSE_PACKAGE = https://github.com/docker/compose/releases/download/v$(DOCKERCOMPOSE_VERSION)/docker-compose-darwin-aarch64
-		TERRAFORM_PACKAGE = https://releases.hashicorp.com/terraform/$(TERRAFORM_VERSION)/terraform_$(TERRAFORM_VERSION)_darwin_arm64.zip
-		CERTTOOL_PACKAGE = https://github.com/cloudfra/certtool/releases/download/v$(CERTTOOL_VERSION)/certtool-arm64-darwin
-		HADOLINT_PACKAGE = https://github.com/hadolint/hadolint/releases/download/v$(HADOLINT_VERSION)/hadolint-macos-arm64
-		SHELLCHECK_PACKAGE = https://github.com/koalaman/shellcheck/releases/download/v$(SHELLCHECK_VERSION)/shellcheck-v$(SHELLCHECK_VERSION).darwin.aarch64.tar.xz
-		SHELLCHECK_ARCHIVE = build/archives/shellcheck.tar.xz
-		TRIVY_PACKAGE = https://github.com/aquasecurity/trivy/releases/download/v$(TRIVY_VERSION)/trivy_$(TRIVY_VERSION)_macOS-ARM64.tar.gz
-		TRIVY_ARCHIVE = build/archives/trivy.tar.gz
-	endif
-endif
-
+# Installed Tools
 GO_WITH_PROXY = go
 GO = GOPROXY=off go
 GO_RACE=-race
@@ -92,9 +36,6 @@ PROTOS =
 TEST_ASSETS =
 ASSETS = $(PROTOS)
 ALL_APPS = example
-
-TERRAFORM = $(REPOSITORY_ROOT)/build/toolchain/bin/terraform$(EXE)
-TOOLCHAIN = build/toolchain/bin/gocover-cobertura$(EXE) build/toolchain/bin/docker-compose$(EXE) build/toolchain/bin/terraform$(EXE) build/toolchain/bin/vizb$(EXE) build/toolchain/bin/certtool$(EXE) build/toolchain/bin/govulncheck$(EXE) $(PROTOC_TOOLCHAIN)
 
 GO_TEST_COUNT = 25
 
@@ -118,10 +59,7 @@ WINDOWS_BINARIES = $(foreach app,$(ALL_APPS),$(foreach platform,$(WINDOWS_PLATFO
 ALL_BINARIES = $(foreach app,$(ALL_APPS),$(foreach platform,$(ALL_PLATFORMS),build/bin/$(platform)/$(app)$(if $(findstring windows,$(platform)),.exe,)))
 CODESIGN_CERT ?= build/certs/codesign.crt
 CODESIGN_KEY ?= build/certs/codesign.key
-# A literal "," inside a $(if ...) argument is parsed as another argument
-# separator, not part of the text - COMMA hides it behind a nested
-# variable reference so it survives into objcopy's --set-section-flags.
-COMMA := ,
+
 RELEASE_BINARIES = $(foreach app,$(ALL_APPS),$(foreach platform,$(ALL_PLATFORMS),build/release/$(app)-$(subst /,_,$(platform))$(if $(findstring windows,$(platform)),.exe,)))
 
 WINDOWS_VERSIONS = 1709 1803 1809 1903 1909 2004 20H2 ltsc2022 ltsc2025
@@ -136,8 +74,10 @@ DOCKER_EXTRA_FLAGS = --builder $(BUILDX_BUILDER) --provenance=false --sbom=false
 # version/created/vcs-ref labels.
 DOCKER_LABEL_ARGS = --build-arg BUILD_DATE=$(BUILD_DATE) --build-arg VCS_REF=$(SHORT_SHA) --build-arg BUILD_VERSION=$(VERSION)
 
-all: no-sudo $(ALL_BINARIES)
+TOOLCHAIN = $(COMMON_TOOLCHAIN) $(PROTOC_TOOLCHAIN)
 tools: $(TOOLCHAIN)
+
+all: no-sudo $(ALL_BINARIES)
 assets: $(ASSETS)
 protos: $(PROTOS)
 windows-binaries: $(WINDOWS_BINARIES)
@@ -151,122 +91,14 @@ release-binaries: $(RELEASE_BINARIES)
 
 build/packages/release.tar.gz: $(ALL_BINARIES)
 	mkdir -p $(dir $@)
-	cd build/bin/; $(TAR) -cvf - * | gzip -9 - > $(REPOSITORY_ROOT)/$@
+	cd build/bin/; tar -cvf - * | gzip -9 - > $(REPOSITORY_ROOT)/$@
 	touch $(REPOSITORY_ROOT)/$@
 
-build/toolchain/bin/vizb$(EXE):
-	# https://github.com/goptics/vizb
-	GOBIN=$(TOOLCHAIN_BIN) $(GO_WITH_PROXY) install github.com/goptics/vizb@latest
-
-build/archives/terraform.zip:
-	mkdir -p $(ARCHIVES_DIR)/
-	$(CURL) -o $(ARCHIVES_DIR)/terraform.zip -L $(TERRAFORM_PACKAGE)
-	touch $@
-
-build/toolchain/bin/terraform$(EXE): build/archives/terraform.zip
-	mkdir -p $(TOOLCHAIN_BIN)
-	mkdir -p $(TOOLCHAIN_DIR)/terraform-temp/
-	cp $(ARCHIVES_DIR)/terraform.zip $(TOOLCHAIN_DIR)/terraform-temp/
-	(cd $(TOOLCHAIN_DIR)/terraform-temp/ && unzip -q -j terraform.zip)
-	cp $(TOOLCHAIN_DIR)/terraform-temp/terraform$(EXE) $(TOOLCHAIN_BIN)/terraform$(EXE)
-	rm -rf $(TOOLCHAIN_DIR)/terraform-temp/
-
-build/toolchain/bin/docker-compose$(EXE):
-	mkdir -p $(TOOLCHAIN_BIN)
-	curl -Lo $@ $(DOCKERCOMPOSE_PACKAGE)
-	chmod +x $@
-
-build/toolchain/bin/certtool$(EXE):
-	mkdir -p $(TOOLCHAIN_BIN)
-	$(CURL) -Lo $@ $(CERTTOOL_PACKAGE)
-	chmod +x $@
-
 ifeq ($(CODESIGN_CERT)|$(CODESIGN_KEY),build/certs/codesign.crt|build/certs/codesign.key)
-build/certs/codesign.crt build/certs/codesign.key &: build/toolchain/bin/certtool$(EXE)
+build/certs/codesign.crt build/certs/codesign.key &: $(CERTTOOL)
 	mkdir -p $(dir $(CODESIGN_CERT))
 	$(TOOLCHAIN_BIN)/certtool$(EXE) --code-sign --target=linux --public-certificate=$(CODESIGN_CERT) --private-key=$(CODESIGN_KEY)
 endif
-
-build/toolchain/bin/gocover-cobertura$(EXE):
-	mkdir -p $(dir $@)
-	GOBIN=$(dir $(REPOSITORY_ROOT)/$@) $(GO_WITH_PROXY) install github.com/t-yuki/gocover-cobertura@latest
-
-# golangci-lint's own default config (errcheck, govet, ineffassign,
-# staticcheck, unused) already covers what a standalone staticcheck run
-# would, so it's the only Go correctness linter wired into `lint`.
-build/toolchain/bin/golangci-lint$(EXE):
-	mkdir -p $(dir $@)
-	GOBIN=$(dir $(REPOSITORY_ROOT)/$@) $(GO_WITH_PROXY) install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@latest
-
-# Stricter formatting than `go fmt` (gofmt superset).
-build/toolchain/bin/gofumpt$(EXE):
-	mkdir -p $(dir $@)
-	GOBIN=$(dir $(REPOSITORY_ROOT)/$@) $(GO_WITH_PROXY) install mvdan.cc/gofumpt@latest
-
-# Style/doc-comment linter; not covered by golangci-lint's default config.
-build/toolchain/bin/revive$(EXE):
-	mkdir -p $(dir $@)
-	GOBIN=$(dir $(REPOSITORY_ROOT)/$@) $(GO_WITH_PROXY) install github.com/mgechev/revive@latest
-
-build/toolchain/bin/govulncheck$(EXE):
-	mkdir -p $(dir $@)
-	GOBIN=$(dir $(REPOSITORY_ROOT)/$@) $(GO_WITH_PROXY) install golang.org/x/vuln/cmd/govulncheck@v$(GOVULNCHECK_VERSION)
-
-build/toolchain/bin/tflint$(EXE):
-	mkdir -p $(dir $@)
-	GOBIN=$(dir $(REPOSITORY_ROOT)/$@) $(GO_WITH_PROXY) install github.com/terraform-linters/tflint@latest
-
-build/toolchain/bin/actionlint$(EXE):
-	mkdir -p $(dir $@)
-	GOBIN=$(dir $(REPOSITORY_ROOT)/$@) $(GO_WITH_PROXY) install github.com/rhysd/actionlint/cmd/actionlint@latest
-
-# Not a Go module, so it's fetched as a prebuilt binary like terraform/docker-compose above.
-build/toolchain/bin/hadolint$(EXE):
-	mkdir -p $(TOOLCHAIN_BIN)
-	$(CURL) -o $@ -L $(HADOLINT_PACKAGE)
-	chmod +x $@
-
-$(SHELLCHECK_ARCHIVE):
-	mkdir -p $(ARCHIVES_DIR)/
-	$(CURL) -o $@ -L $(SHELLCHECK_PACKAGE)
-	touch $@
-
-# Also not a Go module. Unlike hadolint, shellcheck ships as an archive (a
-# .zip with shellcheck.exe on Windows, a .tar.xz with a versioned
-# subdirectory everywhere else), so it needs extracting rather than a
-# straight download. actionlint auto-detects it on PATH (which already
-# includes this toolchain dir), so no separate lint invocation is needed.
-build/toolchain/bin/shellcheck$(EXE): $(SHELLCHECK_ARCHIVE)
-	mkdir -p $(TOOLCHAIN_BIN)
-	mkdir -p $(TOOLCHAIN_DIR)/shellcheck-temp/
-ifeq ($(HOST_OS),windows)
-	(cd $(TOOLCHAIN_DIR)/shellcheck-temp/ && unzip -q -j $(REPOSITORY_ROOT)/$<)
-else
-	tar -xJf $< -C $(TOOLCHAIN_DIR)/shellcheck-temp/ --strip-components=1
-endif
-	cp $(TOOLCHAIN_DIR)/shellcheck-temp/shellcheck$(EXE) $(TOOLCHAIN_BIN)/shellcheck$(EXE)
-	chmod +x $(TOOLCHAIN_BIN)/shellcheck$(EXE)
-	rm -rf $(TOOLCHAIN_DIR)/shellcheck-temp/
-
-$(TRIVY_ARCHIVE):
-	mkdir -p $(ARCHIVES_DIR)/
-	$(CURL) -o $@ -L $(TRIVY_PACKAGE)
-	touch $@
-
-# Also not a Go module; ships as an archive like shellcheck, but unlike
-# shellcheck the binary sits at the archive root with no versioned
-# subdirectory, so no --strip-components/-j is needed.
-build/toolchain/bin/trivy$(EXE): $(TRIVY_ARCHIVE)
-	mkdir -p $(TOOLCHAIN_BIN)
-	mkdir -p $(TOOLCHAIN_DIR)/trivy-temp/
-ifeq ($(HOST_OS),windows)
-	(cd $(TOOLCHAIN_DIR)/trivy-temp/ && unzip -q $(REPOSITORY_ROOT)/$<)
-else
-	tar -xzf $< -C $(TOOLCHAIN_DIR)/trivy-temp/
-endif
-	cp $(TOOLCHAIN_DIR)/trivy-temp/trivy$(EXE) $(TOOLCHAIN_BIN)/trivy$(EXE)
-	chmod +x $(TOOLCHAIN_BIN)/trivy$(EXE)
-	rm -rf $(TOOLCHAIN_DIR)/trivy-temp/
 
 build/bin/%: $(ASSETS)
 	GOOS=$(word 3, $(subst /, ,$(dir $@))) GOARCH=$(word 4, $(subst /, ,$(dir $@))) GOARM=$(subst v,,$(word 5, $(subst /, ,$(dir $@)))) CGO_ENABLED=0 $(GO) build -ldflags="-X 'github.com/cloudfra/template-go/internal.version=$(VERSION)' -X 'github.com/cloudfra/template-go/internal.buildstamp=$(BUILD_DATE)'" -o $@ cmd/$(basename $(notdir $@))/$(basename $(notdir $@)).go
@@ -278,21 +110,21 @@ run: cmd/example/example.go
 lint: lint-go lint-terraform lint-docker lint-yaml lint-shell lint-vuln
 
 lint-terraform: build/toolchain/bin/terraform$(EXE) build/toolchain/bin/tflint$(EXE) build/toolchain/bin/trivy$(EXE)
-	(cd install/terraform; $(TERRAFORM) fmt .)
-	build/toolchain/bin/tflint$(EXE) --init --chdir install/terraform
-	build/toolchain/bin/tflint$(EXE) --chdir install/terraform
+	(cd install/terraform; $(REPOSITORY_ROOT)/build/toolchain/bin/terraform$(EXE) fmt .)
+	$(REPOSITORY_ROOT)/build/toolchain/bin/tflint$(EXE) --init --chdir install/terraform
+	$(REPOSITORY_ROOT)/build/toolchain/bin/tflint$(EXE) --chdir install/terraform
 	# tflint covers style/correctness, not security misconfigurations (overly
 	# permissive IAM, public storage buckets, missing encryption, etc.) -
 	# trivy config (successor to the now-maintenance-mode tfsec, folded into
 	# trivy) covers that instead, reusing the same tool already pinned for
 	# image scanning rather than adding a second, redundant IaC scanner.
-	build/toolchain/bin/trivy$(EXE) config --severity HIGH,CRITICAL --exit-code 1 install/terraform
+	$(REPOSITORY_ROOT)/build/toolchain/bin/trivy$(EXE) config --severity HIGH,CRITICAL --exit-code 1 install/terraform
 
 lint-go: build/toolchain/bin/golangci-lint$(EXE) build/toolchain/bin/gofumpt$(EXE) build/toolchain/bin/revive$(EXE)
 	$(GO) fmt ./...
-	build/toolchain/bin/gofumpt$(EXE) -l -w .
+	-build/toolchain/bin/gofumpt$(EXE) -l -w .
 	build/toolchain/bin/golangci-lint$(EXE) run ./...
-	build/toolchain/bin/revive$(EXE) -set_exit_status ./...
+	build/toolchain/bin/revive$(EXE) -set_exit_status -exclude=build/... ./...
 	$(GO) mod verify
 
 lint-docker: build/toolchain/bin/hadolint$(EXE)
@@ -337,8 +169,8 @@ tf-test: build/toolchain/bin/terraform$(EXE) $(TEST_ASSETS)
 	# -backend=false: main.tftest.hcl mocks the providers and never touches
 	# real state, so there's no need to configure the (real, per-environment)
 	# GCS backend just to run tests.
-	(cd install/terraform/; $(TERRAFORM) init -backend=false)
-	(cd install/terraform/; $(TERRAFORM) test)
+	(cd install/terraform/; $(REPOSITORY_ROOT)/build/toolchain/bin/terraform$(EXE) init -backend=false)
+	(cd install/terraform/; $(REPOSITORY_ROOT)/build/toolchain/bin/terraform$(EXE) test)
 
 test-deflake: $(TEST_ASSETS)
 	CGO_ENABLED=1 $(GO) test -shuffle=on -tags testing $(GO_RACE) ${SOURCE_DIRS} -cover -count $(GO_TEST_COUNT) -test.short
@@ -400,7 +232,6 @@ scan-images: $(ALL_SCAN_IMAGES)
 scan-image-%: build/bin/linux/amd64/% build/toolchain/bin/trivy$(EXE) ensure-builder
 	$(DOCKER) buildx build $(DOCKER_EXTRA_FLAGS) --platform linux/amd64 --build-arg BINARY_PATH=$< $(DOCKER_LABEL_ARGS) --build-arg BINARY_NAME=$* -f cmd/$*/Dockerfile -t $(REGISTRY)/$*:$(TAG)-scan --load .
 	build/toolchain/bin/trivy$(EXE) image --severity HIGH,CRITICAL --exit-code 1 $(REGISTRY)/$*:$(TAG)-scan
-
 
 ALL_IMAGES = $(foreach app,$(ALL_APPS),$(REGISTRY)/$(app))
 # https://github.com/docker-library/official-images#architectures-other-than-amd64
