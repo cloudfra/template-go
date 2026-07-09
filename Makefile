@@ -162,6 +162,32 @@ bench: $(TEST_ASSETS)
 benchmark.html: $(TEST_ASSETS) build/toolchain/bin/vizb$(EXE)
 	$(GO) test -json -bench=. -benchmem -tags testing ${SOURCE_DIRS} | build/toolchain/bin/vizb$(EXE) -o benchmark.html
 
+# Appends plain-text benchmark results to the workflow run's job summary
+# page when run in CI (GITHUB_STEP_SUMMARY is set by GitHub Actions),
+# alongside the interactive benchmark.html artifact - Actions artifacts are
+# zip-wrapped and buried behind several clicks (Actions tab -> run ->
+# Artifacts -> download -> unzip), so nothing about a regression was
+# visible without deliberately going and looking. Kept here rather than as
+# an inline run: script in deploy.yaml so both OS jobs share one
+# implementation under the same shell make already assumes for every other
+# recipe - a prior version of this used a raw pwsh script directly in the
+# workflow, which broke because this repo's self-hosted Windows runner
+# doesn't have pwsh installed.
+# -run='^$' skips ordinary tests; those are covered by the Test step.
+# Falls back to plain stdout locally, where GITHUB_STEP_SUMMARY is unset.
+benchmark-summary: $(TEST_ASSETS)
+ifdef GITHUB_STEP_SUMMARY
+	@{ \
+		echo "### Benchmark results"; \
+		echo; \
+		echo '```'; \
+		$(GO) test -run='^$$' -bench=. -benchmem -tags testing ${SOURCE_DIRS}; \
+		echo '```'; \
+	} >> "$(GITHUB_STEP_SUMMARY)"
+else
+	$(GO) test -run='^$$' -bench=. -benchmem -tags testing ${SOURCE_DIRS}
+endif
+
 test: $(TEST_ASSETS)
 	$(GO) test -shuffle=on -tags testing ${SOURCE_DIRS}
 
@@ -268,7 +294,7 @@ windows-images: $(ALL_WINDOWS_IMAGES)
 windows-image-%: build/bin/windows/amd64/$$(call appname,$$*).exe ensure-builder
 	$(DOCKER) buildx build $(DOCKER_EXTRA_FLAGS) --platform windows/amd64 --build-arg BINARY_PATH=$< $(DOCKER_LABEL_ARGS) --build-arg BINARY_NAME=$(call appname,$*) -f cmd/$(call appname,$*)/Dockerfile.windows --build-arg WINDOWS_VERSION=$(call platform,$*) -t $(REGISTRY)/$(call appname,$*):$(TAG)-windows_amd64-$(call platform,$*) . $(DOCKER_PUSH)
 
-.PHONY: all tools assets protos windows-binaries run lint lint-go lint-terraform lint-docker lint-yaml lint-shell lint-vuln bench test tf-test test-deflake ensure-builder docker-images scan-images images linux-images windows-images upgrade-deps deps clean presubmit system-info release-binaries no-sudo
+.PHONY: all tools assets protos windows-binaries run lint lint-go lint-terraform lint-docker lint-yaml lint-shell lint-vuln bench benchmark-summary test tf-test test-deflake ensure-builder docker-images scan-images images linux-images windows-images upgrade-deps deps clean presubmit system-info release-binaries no-sudo
 .SECONDEXPANSION:
 
 # "appname-linux_arm_v5" -> "linux_arm_v5"
