@@ -105,7 +105,7 @@ jobs:
         uses: reviewdog/action-yamllint@v1
         with:
           github_token: ${{ secrets.github_token }}
-          reporter: github-pr-review # Default is github-pr-check
+          reporter: github-pr-review  # Default is github-pr-check
           # Workflow/dependabot/actionlint config - the YAML this repo owns
           # and maintains. third_party is vendored upstream sources, same
           # exclusion the misspell/codespell jobs above already apply.
