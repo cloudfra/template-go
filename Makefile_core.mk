@@ -12,8 +12,29 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+COMMA := ,
 EXE =
 FIND = find
+
+REPOSITORY_ROOT := $(patsubst %/,%,$(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
+BUILD_DIR = $(REPOSITORY_ROOT)/build
+ARCHIVES_DIR = $(BUILD_DIR)/archives
+TOOLCHAIN_DIR = $(BUILD_DIR)/toolchain
+TOOLCHAIN_BIN = $(TOOLCHAIN_DIR)/bin
+THIRDPARTY_DIR = $(REPOSITORY_ROOT)/third_party
+
+TOOLCHAIN_GO = go
+TOOLCHAIN_GO_INSTALL = GOPATH=$(TOOLCHAIN_DIR) $(TOOLCHAIN_GO) install
+CURL = curl --retry 5 --retry-connrefused
+
+SHORT_SHA = $(shell git rev-parse --short=7 HEAD | tr -d [:punct:])
+DIRTY_VERSION = v0.0.0-$(SHORT_SHA)
+VERSION = $(shell git describe --tags || (echo $(DIRTY_VERSION) && exit 1))
+BUILD_DATE = $(shell date -u +'%Y-%m-%dT%H:%M:%SZ')
+TAG := $(VERSION)
+
+export PATH := $(PWD)/build/toolchain/bin:$(PATH)
+SOURCE_DIRS=$(shell go list ./... | grep -v '/vendor/')
 
 ifeq ($(OS),Windows_NT)
 	HOST_OS = windows
@@ -43,31 +64,3 @@ else
 		SED_REPLACE = sed -i ''
 	endif
 endif
-
-# Directory containing this makefile (i.e. the repository root), regardless
-# of where `make` is invoked from.
-REPOSITORY_ROOT := $(patsubst %/,%,$(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
-BUILD_DIR = $(REPOSITORY_ROOT)/build
-ARCHIVES_DIR = $(BUILD_DIR)/archives
-TOOLCHAIN_DIR = $(BUILD_DIR)/toolchain
-TOOLCHAIN_BIN = $(TOOLCHAIN_DIR)/bin
-THIRDPARTY_DIR = $(REPOSITORY_ROOT)/third_party
-
-TOOLCHAIN_GO = go
-TOOLCHAIN_GO_INSTALL = GOPATH=$(TOOLCHAIN_DIR) $(TOOLCHAIN_GO) install
-CURL = curl --retry 5 --retry-connrefused
-
-no-sudo:
-ifndef ALLOW_BUILD_WITH_SUDO
-ifeq ($(shell whoami),root)
-	@echo "ERROR: Running Makefile as root (or sudo)"
-	@echo "Please follow the instructions at https://docs.docker.com/install/linux/linux-postinstall/ if you are trying to sudo run the Makefile because of the 'Cannot connect to the Docker daemon' error."
-	@echo "NOTE: sudo/root do not have the authentication token to talk to any GCP service via gcloud."
-	exit 1
-endif
-endif
-
-# A literal "," inside a $(if ...) argument is parsed as another argument
-# separator, not part of the text - COMMA hides it behind a nested
-# variable reference so it survives into objcopy's --set-section-flags.
-COMMA := ,

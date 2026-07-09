@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-include core.mk
+include Makefile_core.mk
 
 # https://github.com/docker/compose/releases
 DOCKERCOMPOSE_VERSION = 5.3.1
