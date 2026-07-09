@@ -63,7 +63,7 @@ jobs:
         uses: reviewdog/action-hadolint@v1
         with:
           github_token: ${{ secrets.github_token }}
-          reporter: github-pr-review # Default is github-pr-check
+          reporter: github-pr-review  # Default is github-pr-check
 
   # plettich/action-codespell is unmaintained (last updated 2024-12) and its
   # Dockerfile floats on `alpine:latest`, which broke `pip install codespell`
