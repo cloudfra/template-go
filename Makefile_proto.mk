@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-include core.mk
+include Makefile_core.mk
 
 # https://github.com/protocolbuffers/protobuf/releases
 PROTOC_VERSION = 35.1
