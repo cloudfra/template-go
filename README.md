@@ -75,7 +75,6 @@ package; the build system picks it up automatically.
 | `make linux-images` / `make windows-images` | Build just the Linux or Windows platform images that `make images` merges |
 | `make release-binaries` | Build release artifacts for every platform, code-signing where supported (Windows, `linux/386`, `linux/amd64`) |
 | `make windows-binaries` | Build Windows binaries only |
-| `make tf-test` | Run Terraform tests |
 | `make presubmit` | Run the full suite of checks used in CI (tools, lint, build, test-deflake) |
 | `make clean` | Remove build outputs |
 | `make deps` / `make upgrade-deps` | Install / upgrade Go module dependencies |
