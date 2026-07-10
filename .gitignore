@@ -56,6 +56,7 @@ __debug_bin.exe
 *.pt
 /web.cert
 /web.key
+benchmark.html
 build/
 gha-creds-*.json
 output/

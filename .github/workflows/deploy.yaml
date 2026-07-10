@@ -248,6 +248,12 @@ jobs:
           go-version: stable
           cache: false
 
+      - name: Prepare Build
+        run: |
+          make clean
+          make deps
+          make tools -j"$(nproc)"
+
       - name: Build
         run: make windows-binaries -j4
 
