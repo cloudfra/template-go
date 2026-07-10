@@ -94,6 +94,7 @@ build/bin/%: $(ASSETS)
 
 lint: lint-go lint-terraform lint-docker lint-yaml lint-shell lint-vuln
 
+ifneq ($(wildcard install/terraform),)
 lint-terraform: build/toolchain/bin/terraform$(EXE) build/toolchain/bin/tflint$(EXE) build/toolchain/bin/trivy$(EXE)
 	(cd install/terraform; $(REPOSITORY_ROOT)/build/toolchain/bin/terraform$(EXE) fmt .)
 	$(REPOSITORY_ROOT)/build/toolchain/bin/tflint$(EXE) --init --chdir install/terraform
@@ -104,10 +105,13 @@ lint-terraform: build/toolchain/bin/terraform$(EXE) build/toolchain/bin/tflint$(
 	# trivy) covers that instead, reusing the same tool already pinned for
 	# image scanning rather than adding a second, redundant IaC scanner.
 	$(REPOSITORY_ROOT)/build/toolchain/bin/trivy$(EXE) config --severity HIGH,CRITICAL --exit-code 1 install/terraform
+else
+lint-terraform:
+endif
 
 lint-go: build/toolchain/bin/golangci-lint$(EXE) build/toolchain/bin/gofumpt$(EXE) build/toolchain/bin/revive$(EXE)
 	$(GO) fmt ./...
-	-build/toolchain/bin/gofumpt$(EXE) -l -w .
+	build/toolchain/bin/gofumpt$(EXE) -l -w .
 	build/toolchain/bin/golangci-lint$(EXE) run ./...
 	build/toolchain/bin/revive$(EXE) -set_exit_status -exclude=build/... ./...
 	$(GO) mod verify
