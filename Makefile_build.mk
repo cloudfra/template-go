@@ -135,15 +135,21 @@ bench: $(TEST_ASSETS)
 benchmark.html: $(TEST_ASSETS) build/toolchain/bin/vizb$(EXE)
 	$(GO) test -json -bench=. -benchmem -tags testing ${SOURCE_DIRS} | build/toolchain/bin/vizb$(EXE) -o benchmark.html
 
-test: $(TEST_ASSETS)
+test: test-go test-tf
+
+test-go: $(TEST_ASSETS)
 	$(GO) test -shuffle=on -tags testing ${SOURCE_DIRS}
 
-tf-test: build/toolchain/bin/terraform$(EXE) $(TEST_ASSETS)
+ifneq ($(wildcard install/terraform),)
+test-tf: build/toolchain/bin/terraform$(EXE) $(TEST_ASSETS)
 	# -backend=false: main.tftest.hcl mocks the providers and never touches
 	# real state, so there's no need to configure the (real, per-environment)
 	# GCS backend just to run tests.
 	(cd install/terraform/; $(REPOSITORY_ROOT)/build/toolchain/bin/terraform$(EXE) init -backend=false)
 	(cd install/terraform/; $(REPOSITORY_ROOT)/build/toolchain/bin/terraform$(EXE) test)
+else
+test-tf:
+endif
 
 test-deflake: $(TEST_ASSETS)
 	CGO_ENABLED=1 $(GO) test -shuffle=on -tags testing $(GO_RACE) ${SOURCE_DIRS} -cover -count $(GO_TEST_COUNT) -test.short

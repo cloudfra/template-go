@@ -32,8 +32,6 @@ jobs:
   build-linux:
     name: "Build Linux"
     runs-on: ["self-hosted", "linux", "large"]
-    # container:
-    #   image: docker.io/cloudfra/ci-core:canary # Maybe
     permissions:
       contents: write
       packages: write
@@ -68,11 +66,7 @@ jobs:
         run: |
           make clean
           make deps
-          make lint
-          make deps tools -j"$(nproc)"
-
-      - name: Terraform Test
-        run: make tf-test
+          make lint tools -j"$(nproc)"
 
       - name: Test
         run: make test
