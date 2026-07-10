@@ -18,4 +18,5 @@ go 1.25.0
 
 ignore (
   ./build
+	./third_party
 )
