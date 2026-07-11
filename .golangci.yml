@@ -14,6 +14,12 @@
 
 version: "2"
 
+formatters:
+  exclusions:
+    paths:
+      - "build/"
+      - "third_party/"
+
 linters:
   # Keep the default set (errcheck, govet, ineffassign, staticcheck, unused)
   # and layer a security-focused, curated set on top of it.
@@ -27,11 +33,8 @@ linters:
     - bodyclose
     - noctx
     - goconst
-  # revive already runs standalone in `make lint`, with its own config; enabling
-  # golangci-lint's bundled revive linter here would duplicate/conflict with it.
-  disable:
     - revive
   exclusions:
-    rules:
-      - path: "build"
-        linters: ["all"]
+    paths:
+      - "build/"
+      - "third_party/"
