@@ -17,10 +17,11 @@
 # COPY, so excluding it keeps the build context in the tens of MB instead of
 # the ~1GB a full `make all` toolchain/archives directory would otherwise send
 # to the daemon on every `docker build`.
+# build/release/ is kept (not excluded) in case a future Dockerfile COPYs
+# signed release binaries from there instead of build/bin/.
 build/toolchain/
 build/archives/
 build/certs/
-build/release/
 build/packages/
 
 third_party/
