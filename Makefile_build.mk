@@ -45,7 +45,9 @@ RELEASE_PLATFORMS = linux/amd64 linux/amd64 windows/amd64 windows/arm64 darwin/a
 
 MAIN_BINARIES = $(foreach app,$(ALL_APPS),$(foreach platform,$(MAIN_PLATFORMS),build/bin/$(platform)/$(app)$(if $(findstring windows,$(platform)),.exe,)))
 WINDOWS_BINARIES = $(foreach app,$(ALL_APPS),$(foreach platform,$(WINDOWS_PLATFORMS),build/bin/$(platform)/$(app)$(if $(findstring windows,$(platform)),.exe,)))
-ALL_BINARIES = $(foreach app,$(ALL_APPS),$(foreach platform,$(ALL_PLATFORMS),build/bin/$(platform)/$(app)$(if $(findstring windows,$(platform)),.exe,)))
+WASM_ASSETS = $(foreach app,$(ALL_APPS),build/bin/js/wasm/$(app).html)
+ALL_BINARIES = $(foreach app,$(ALL_APPS),$(foreach platform,$(ALL_PLATFORMS),build/bin/$(platform)/$(app)$(if $(findstring windows,$(platform)),.exe,))) $(WASM_ASSETS)
+
 CODESIGN_CERT ?= build/certs/codesign.crt
 CODESIGN_KEY ?= build/certs/codesign.key
 
@@ -98,6 +100,18 @@ build/bin/%: $(ASSETS)
 	GOOS=$(word 3, $(subst /, ,$(dir $@))) GOARCH=$(word 4, $(subst /, ,$(dir $@))) GOARM=$(subst v,,$(word 5, $(subst /, ,$(dir $@)))) CGO_ENABLED=0 $(GO) build -ldflags="-X '$(GO_PACKAGE)/internal.version=$(VERSION)' -X '$(GO_PACKAGE)/internal.buildstamp=$(BUILD_DATE)'" -o $@ cmd/$(basename $(notdir $@))/$(basename $(notdir $@)).go
 	touch $@
 
+build/bin/js/wasm/%.html: build/bin/js/wasm/% build/bin/js/wasm/wasm_exec.js
+	mkdir -p $(dir $@)
+	cp -f $(shell go env GOROOT)/misc/wasm/wasm_exec.html $@
+	sed -i 's/..\/..\/lib\/wasm\///g' $@
+	sed -i 's/test\.wasm/$*/g' $@
+
+build/bin/js/wasm/wasm_exec.js:
+	mkdir -p $(dir $@)
+	cp -f $(shell go env GOROOT)/lib/wasm/wasm_exec.js $@
+
+wasm-binaries: $(WASM_BINARIES)
+
 lint: lint-go lint-terraform lint-docker lint-yaml lint-shell lint-vuln
 
 ifneq ($(wildcard install/terraform),)
@@ -130,7 +144,7 @@ lint-yaml: build/toolchain/bin/actionlint$(EXE) build/toolchain/bin/shellcheck$(
 	build/toolchain/bin/actionlint$(EXE) -shellcheck=$(REPOSITORY_ROOT)/build/toolchain/bin/shellcheck$(EXE) -config-file $(REPOSITORY_ROOT)/.github/actionlint.yaml
 
 lint-shell: build/toolchain/bin/shellcheck$(EXE)
-	@scripts="$$($(FIND) . -name '*.sh' -not -path './third_party/*' -not -path './build/*')"; \
+	@scripts="$$($(FIND) . -name '*.sh' -not -path './third_party/*' -not -path './build/*' -not -path '*/testassets/*')"; \
 	shellcheck_exclude=""; \
 	if [ "$(OS)" = "Windows_NT" ]; then shellcheck_exclude="--exclude=SC1009,SC1017,SC1044,SC1072,SC1073"; fi; \
 	if [ -n "$$scripts" ]; then build/toolchain/bin/shellcheck$(EXE) $$shellcheck_exclude $$scripts; fi
