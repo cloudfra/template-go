@@ -3,7 +3,7 @@
 <!-- markdownlint-disable-next-line MD033 -->
 <img src="logo.png" alt="Logo" width="64" height="64" />
 
-[![CI](https://github.com/cloudfra/template-go/actions/workflows/deploy.yaml/badge.svg)](https://github.com/cloudfra/template-go/actions/workflows/deploy.yaml) [![Go Reference](https://pkg.go.dev/badge/github.com/cloudfra/template-go.svg)](https://pkg.go.dev/github.com/cloudfra/template-go) [![codecov](https://codecov.io/gh/cloudfra/template-go/graph/badge.svg?token=UVApxhg6z7)](https://codecov.io/gh/cloudfra/template-go)
+[![CI](https://github.com/cloudfra/template-go/actions/workflows/deploy.yaml/badge.svg)](https://github.com/cloudfra/template-go/actions/workflows/deploy.yaml) [![Go Reference](https://pkg.go.dev/badge/github.com/cloudfra/template-go.svg)](https://pkg.go.dev/github.com/cloudfra/template-go) [![codecov](https://codecov.io/gh/cloudfra/template-go/graph/badge.svg?token=UVApxhg6z7)](https://codecov.io/gh/cloudfra/template-go) [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/cloudfra/template-go/badge)](https://scorecard.dev/viewer/?uri=github.com/cloudfra/template-go)
 
 A starter template for Go projects at Cloudfra, wiring together a
 `make`-based build system, cross-platform binaries, Docker images,
@@ -47,12 +47,12 @@ make run
 
 ## Project layout
 
-```
-cmd/<app>/       Entry point(s) for each binary (one directory per app)
-internal/        Private application and library code
+```bash
+cmd/<app>/          Entry point(s) for each binary (one directory per app)
+internal/           Private application and library code
 install/terraform/  Infrastructure-as-code for deploying the app
-third_party/     Vendored protobuf/gRPC-gateway definitions
-build/           Build outputs (binaries, toolchain) - not checked in
+third_party/        Vendored protobuf/gRPC-gateway definitions
+build/              Build outputs (binaries, toolchain) - not checked in
 ```
 
 To add a new binary, create a new directory under `cmd/` with a `main`
@@ -60,24 +60,24 @@ package; the build system picks it up automatically.
 
 ## Common make targets
 
-| Target | Description |
-| --- | --- |
-| `make` / `make all` | Build binaries for every supported platform |
-| `make run` | Build and run the example binary |
-| `make test` | Run the unit test suite |
-| `make bench` | Run benchmarks |
-| `make test-deflake` | Re-run tests to catch flakes |
-| `make lint` | Run the full lint suite (see Features) |
-| `make protos` | Generate code from `.proto` definitions |
-| `make docker-images` | Build a quick single-arch (`linux/amd64`) Docker image per app, tagged locally |
-| `make scan-images` | Build a local single-arch image per app and scan it with trivy, failing on HIGH/CRITICAL vulnerabilities |
-| `make images` | Build every supported Linux/Windows platform and merge them into one multi-arch manifest per app |
-| `make linux-images` / `make windows-images` | Build just the Linux or Windows platform images that `make images` merges |
-| `make release-binaries` | Build release artifacts for every platform, code-signing where supported (Windows, `linux/386`, `linux/amd64`) |
-| `make windows-binaries` | Build Windows binaries only |
-| `make presubmit` | Run the full suite of checks used in CI (tools, lint, build, test-deflake) |
-| `make clean` | Remove build outputs |
-| `make deps` / `make upgrade-deps` | Install / upgrade Go module dependencies |
+| Target                             | Description                                                                                                    |
+| ---------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| `make` / `make all`                | Build binaries for every supported platform                                                                    |
+| `make run`                         | Build and run the example binary                                                                               |
+| `make test`                        | Run the unit test suite                                                                                        |
+| `make bench`                       | Run benchmarks                                                                                                 |
+| `make test-deflake`                | Re-run tests to catch flakes                                                                                   |
+| `make lint`                        | Run the full lint suite (see Features)                                                                         |
+| `make protos`                      | Generate code from `.proto` definitions                                                                        |
+| `make docker-images`               | Build a quick single-arch (`linux/amd64`) Docker image per app, tagged locally                                 |
+| `make scan-images`                 | Build a local single-arch image per app and scan it with trivy, failing on HIGH/CRITICAL vulnerabilities       |
+| `make images`                      | Build every supported Linux/Windows platform and merge them into one multi-arch manifest per app               |
+| `make linux-images windows-images` | Build just the Linux or Windows platform images that `make images` merges                                      |
+| `make release-binaries`            | Build release artifacts for every platform, code-signing where supported (Windows, `linux/386`, `linux/amd64`) |
+| `make windows-binaries`            | Build Windows binaries only                                                                                    |
+| `make presubmit`                   | Run the full suite of checks used in CI (tools, lint, build, test-deflake)                                     |
+| `make clean`                       | Remove build outputs                                                                                           |
+| `make deps`                        | Install / upgrade Go module dependencies                                                                       |
 
 ## Testing
 
