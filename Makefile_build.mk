@@ -305,4 +305,4 @@ system-info:
 sync-upstream:
 	-git fetch origin; git add -A; git commit -m"Save pending changes."; git rebase -i origin/main 
 
-.PHONY: tools all assets protos windows-binaries release-binaries wasm-binaries lint-terraform lint-go lint-docker lint-yaml lint-shell lint-vuln bench test test-go test-deflake test-tf deps clean presubmit ensure-docker docker-images scan-images images linux-images windows-images no-sudo sync-upstream
+.PHONY: tools all assets protos windows-binaries release-binaries wasm-binaries lint-terraform lint-go lint-docker lint-yaml lint-shell lint-vuln bench test test-go test-deflake test-tf deps clean presubmit ensure-builder docker-images scan-images images linux-images windows-images no-sudo sync-upstream
