@@ -3,7 +3,10 @@
 <!-- markdownlint-disable-next-line MD033 -->
 <img src="logo.png" alt="Logo" width="64" height="64" />
 
-[![CI](https://github.com/cloudfra/template-go/actions/workflows/deploy.yaml/badge.svg)](https://github.com/cloudfra/template-go/actions/workflows/deploy.yaml) [![Go Reference](https://pkg.go.dev/badge/github.com/cloudfra/template-go.svg)](https://pkg.go.dev/github.com/cloudfra/template-go) [![codecov](https://codecov.io/gh/cloudfra/template-go/graph/badge.svg?token=UVApxhg6z7)](https://codecov.io/gh/cloudfra/template-go) [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/cloudfra/template-go/badge)](https://scorecard.dev/viewer/?uri=github.com/cloudfra/template-go)
+[![CI](https://github.com/cloudfra/template-go/actions/workflows/deploy.yaml/badge.svg)](https://github.com/cloudfra/template-go/actions/workflows/deploy.yaml)
+[![Go Reference](https://pkg.go.dev/badge/github.com/cloudfra/template-go.svg)](https://pkg.go.dev/github.com/cloudfra/template-go)
+[![codecov](https://codecov.io/gh/cloudfra/template-go/graph/badge.svg?token=UVApxhg6z7)](https://codecov.io/gh/cloudfra/template-go)
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/cloudfra/template-go/badge)](https://scorecard.dev/viewer/?uri=github.com/cloudfra/template-go)
 
 A starter template for Go projects at Cloudfra, wiring together a
 `make`-based build system, cross-platform binaries, Docker images,
@@ -30,9 +33,10 @@ boilerplate and start with working infrastructure on day one.
 - **CI included** — GitHub Actions workflow (`.github/workflows/deploy.yaml`)
   that builds, lints, and tests on every push and pull request.
 - **Enforced linting** — `make lint` runs gofmt, gofumpt, golangci-lint,
-  revive, hadolint, actionlint, govulncheck, tflint/terraform fmt, and
-  trivy config (Terraform misconfiguration scanning), downloading its own
-  toolchain so it's reproducible locally and in CI.
+  revive, hadolint, actionlint, markdownlint, govulncheck,
+  tflint/terraform fmt, and trivy config (Terraform misconfiguration
+  scanning), downloading its own toolchain so it's reproducible locally
+  and in CI.
 
 ## Getting started
 

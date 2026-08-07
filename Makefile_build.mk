@@ -112,7 +112,7 @@ build/bin/js/wasm/wasm_exec.js:
 
 wasm-binaries: $(WASM_BINARIES)
 
-lint: lint-go lint-terraform lint-docker lint-yaml lint-shell lint-vuln
+lint: lint-go lint-terraform lint-docker lint-yaml lint-shell lint-md lint-vuln
 
 ifneq ($(wildcard install/terraform),)
 lint-terraform: build/toolchain/bin/terraform$(EXE) build/toolchain/bin/tflint$(EXE) build/toolchain/bin/trivy$(EXE)
@@ -148,6 +148,9 @@ lint-shell: build/toolchain/bin/shellcheck$(EXE)
 	shellcheck_exclude=""; \
 	if [ "$(OS)" = "Windows_NT" ]; then shellcheck_exclude="--exclude=SC1009,SC1017,SC1044,SC1072,SC1073"; fi; \
 	if [ -n "$$scripts" ]; then "$(REPOSITORY_ROOT)/build/toolchain/bin/shellcheck$(EXE)" $$shellcheck_exclude $$scripts; fi
+
+lint-md: $(MARKDOWNLINT)
+	"$(REPOSITORY_ROOT)/$(MARKDOWNLINT)" "**/*.md" "#build" "#third_party" "#node_modules"
 
 lint-vuln: build/toolchain/bin/govulncheck$(EXE)
 	"$(REPOSITORY_ROOT)/build/toolchain/bin/govulncheck$(EXE)" ./...
@@ -303,4 +306,4 @@ system-info:
 sync-upstream:
 	-git fetch origin; git add -A; git commit -m"Save pending changes."; git rebase -i origin/main
 
-.PHONY: tools all assets protos windows-binaries release-binaries wasm-binaries lint lint-terraform lint-go lint-docker lint-yaml lint-shell lint-vuln bench test test-go test-deflake test-tf deps clean presubmit ensure-builder docker-images scan-images images linux-images windows-images no-sudo system-info sync-upstream
+.PHONY: tools all assets protos windows-binaries release-binaries wasm-binaries lint lint-terraform lint-go lint-docker lint-yaml lint-shell lint-md lint-vuln bench test test-go test-deflake test-tf deps clean presubmit ensure-builder docker-images scan-images images linux-images windows-images no-sudo system-info sync-upstream
