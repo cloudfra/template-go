@@ -30,6 +30,8 @@ GOCOVER_COBERTURA_VERSION = latest
 GOFUMPT_VERSION = latest
 # https://github.com/golangci/golangci-lint/releases
 GOLANGCI_LINT_VERSION = latest
+# https://github.com/DavidAnson/markdownlint-cli2/tags
+MARKDOWNLINT_VERSION = 0.23.2
 # https://github.com/golang/vuln/releases
 GOVULNCHECK_VERSION = 1.6.0
 # https://github.com/mgechev/revive/releases
@@ -91,6 +93,7 @@ CERTTOOL = build/toolchain/bin/certtool$(EXE)
 DOCKER_COMPOSE = build/toolchain/bin/docker-compose$(EXE)
 GOCOVER_COBERTURA = build/toolchain/bin/gocover-cobertura$(EXE)
 GOFUMPT = build/toolchain/bin/gofumpt$(EXE)
+MARKDOWNLINT = build/toolchain/node_modules/.bin/markdownlint-cli2
 GOLANGCI_LINT = build/toolchain/bin/golangci-lint$(EXE)
 GOVULNCHECK = build/toolchain/bin/govulncheck$(EXE)
 HADOLINT = build/toolchain/bin/hadolint$(EXE)
@@ -101,7 +104,7 @@ TFLINT = build/toolchain/bin/tflint$(EXE)
 TRIVY = build/toolchain/bin/trivy$(EXE)
 VIZB = build/toolchain/bin/vizb$(EXE)
 
-COMMON_TOOLCHAIN = $(ACTIONLINT) $(CERTTOOL) $(DOCKER_COMPOSE) $(GOCOVER_COBERTURA) $(GOFUMPT) $(GOLANGCI_LINT) $(GOVULNCHECK) $(HADOLINT) $(REVIVE) $(SHELLCHECK) $(TERRAFORM) $(TFLINT) $(TRIVY) $(VIZB)
+COMMON_TOOLCHAIN = $(ACTIONLINT) $(CERTTOOL) $(DOCKER_COMPOSE) $(GOCOVER_COBERTURA) $(GOFUMPT) $(GOLANGCI_LINT) $(GOVULNCHECK) $(HADOLINT) $(MARKDOWNLINT) $(REVIVE) $(SHELLCHECK) $(TERRAFORM) $(TFLINT) $(TRIVY) $(VIZB)
 
 $(ACTIONLINT):
 	mkdir -p "$(dir $@)"
@@ -136,6 +139,9 @@ $(GOLANGCI_LINT):
 $(GOVULNCHECK):
 	mkdir -p "$(dir $@)"
 	GOBIN="$(dir $(REPOSITORY_ROOT)/$@)" $(GO_WITH_PROXY) install golang.org/x/vuln/cmd/govulncheck@v$(GOVULNCHECK_VERSION)
+
+$(MARKDOWNLINT):
+	npm install --prefix "$(TOOLCHAIN_DIR)" markdownlint-cli2@$(MARKDOWNLINT_VERSION)
 
 # Not a Go module, so it's fetched as a prebuilt binary like terraform/docker-compose above.
 $(HADOLINT):
