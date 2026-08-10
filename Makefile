@@ -18,5 +18,6 @@ TEST_ASSETS =
 ASSETS = $(PROTOS)
 GO_PACKAGE = github.com/cloudfra/template-go
 ALL_APPS = example
+PRODUCTION=1
 
 include Makefile_build.mk

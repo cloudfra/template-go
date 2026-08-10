@@ -17,13 +17,13 @@ include Makefile_core.mk
 # https://github.com/rhysd/actionlint/releases
 ACTIONLINT_VERSION=latest
 # https://github.com/docker/compose/releases
-DOCKERCOMPOSE_VERSION = 5.3.1
+DOCKERCOMPOSE_VERSION = 5.4.0
 # https://developer.hashicorp.com/terraform/install
 TERRAFORM_VERSION = 1.15.8
 # https://github.com/cloudfra/certtool/releases
-CERTTOOL_VERSION = 0.4.1
+CERTTOOL_VERSION = 0.5.1
 # https://github.com/hadolint/hadolint/releases
-HADOLINT_VERSION = 2.14.0
+HADOLINT_VERSION = 2.15.1
 # https://github.com/t-yuki/gocover-cobertura/releases
 GOCOVER_COBERTURA_VERSION = latest
 # https://github.com/mvdan/gofumpt/releases
@@ -39,9 +39,9 @@ SHELLCHECK_VERSION = 0.11.0
 # https://github.com/terraform-linters/tflint/releases
 TFLINT_VERSION = latest
 # https://github.com/aquasecurity/trivy/releases
-TRIVY_VERSION = 0.72.0
+TRIVY_VERSION = 0.73.0
 # https://github.com/goptics/vizb/releases
-VIZB_VERSION = 0.14.1
+VIZB_VERSION = 0.18.2
 
 ifeq ($(OS),Windows_NT)
 	DOCKERCOMPOSE_PACKAGE = https://github.com/docker/compose/releases/download/v$(DOCKERCOMPOSE_VERSION)/docker-compose-windows-x86_64.exe
