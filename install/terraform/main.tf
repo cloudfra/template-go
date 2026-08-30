@@ -15,20 +15,20 @@
 # https://registry.terraform.io/providers/hashicorp/google/latest/docs
 terraform {
   # Keep in sync with the minor version of TERRAFORM_VERSION in the Makefile.
-  required_version = "~> 1.15"
+  required_version = "~> 1.16"
 
   required_providers {
     google = {
       source  = "hashicorp/google"
-      version = "7.41.0"
+      version = "8.0.0"
     }
     google-beta = {
       source  = "hashicorp/google-beta"
-      version = "7.41.0"
+      version = "8.0.0"
     }
     null = {
       source  = "hashicorp/null"
-      version = "3.3.0"
+      version = "3.3.1"
     }
   }
 }

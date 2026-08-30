@@ -17,9 +17,9 @@ include Makefile_core.mk
 # https://github.com/rhysd/actionlint/releases
 ACTIONLINT_VERSION=latest
 # https://github.com/docker/compose/releases
-DOCKERCOMPOSE_VERSION = 5.4.0
+DOCKERCOMPOSE_VERSION = 5.5.0
 # https://developer.hashicorp.com/terraform/install
-TERRAFORM_VERSION = 1.15.8
+TERRAFORM_VERSION = 1.16.0
 # https://github.com/cloudfra/certtool/releases
 CERTTOOL_VERSION = 0.5.1
 # https://github.com/hadolint/hadolint/releases
@@ -31,7 +31,7 @@ GOFUMPT_VERSION = latest
 # https://github.com/golangci/golangci-lint/releases
 GOLANGCI_LINT_VERSION = latest
 # https://github.com/golang/vuln/releases
-GOVULNCHECK_VERSION = 1.6.0
+GOVULNCHECK_VERSION = 1.7.0
 # https://github.com/mgechev/revive/releases
 REVIVE_VERSION=latest
 # https://github.com/rvben/rumdl/releases
@@ -41,9 +41,9 @@ SHELLCHECK_VERSION = 0.11.0
 # https://github.com/terraform-linters/tflint/releases
 TFLINT_VERSION = latest
 # https://github.com/aquasecurity/trivy/releases
-TRIVY_VERSION = 0.73.0
+TRIVY_VERSION = 0.74.0
 # https://github.com/goptics/vizb/releases
-VIZB_VERSION = 0.18.2
+VIZB_VERSION = 0.20.0
 
 ifeq ($(OS),Windows_NT)
 	DOCKERCOMPOSE_PACKAGE = https://github.com/docker/compose/releases/download/v$(DOCKERCOMPOSE_VERSION)/docker-compose-windows-x86_64.exe
