@@ -25,6 +25,7 @@ ARG BINARY_PATH
 COPY ${BINARY_PATH} /app/example.exe
 COPY LICENSE /app/LICENSE
 
+# hadolint ignore=DL3066
 USER ContainerUser
 EXPOSE 80
 ENTRYPOINT ["/app/example.exe"]
