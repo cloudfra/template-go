@@ -13,6 +13,7 @@
 # limitations under the License.
 
 # https://registry.terraform.io/providers/hashicorp/google/latest/docs
+
 terraform {
   # Keep in sync with the minor version of TERRAFORM_VERSION in the Makefile.
   required_version = "~> 1.16"
@@ -20,7 +21,7 @@ terraform {
   required_providers {
     google = {
       source  = "hashicorp/google"
-      version = "8.0.0"
+      version = "8.1.0"
     }
     google-beta = {
       source  = "hashicorp/google-beta"
