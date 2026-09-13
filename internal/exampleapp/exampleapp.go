@@ -15,7 +15,7 @@
 // Package exampleapp is the starter implementation new services should replace.
 package exampleapp
 
-import "log"
+import "log/slog"
 
 // Args holds the inputs for Run.
 type Args struct {
@@ -25,6 +25,6 @@ type Args struct {
 
 // Run executes the exampleapp application logic.
 func Run(args Args) error {
-	log.Printf("Running exampleapp with file: %s", args.File)
+	slog.Info("Running exampleapp with file", "file", args.File)
 	return nil
 }

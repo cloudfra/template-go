@@ -17,7 +17,7 @@ package main
 
 import (
 	"flag"
-	"log"
+	"log/slog"
 	"os"
 
 	"github.com/cloudfra/template-go/internal/exampleapp"
@@ -30,7 +30,7 @@ func main() {
 	if err := exampleapp.Run(exampleapp.Args{
 		File: *fileFlag,
 	}); err != nil {
-		log.Printf("ERROR: %s", err)
+		slog.Error("ERROR", "error", err)
 		os.Exit(1)
 	}
 }
