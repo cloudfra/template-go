@@ -12,19 +12,25 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package example is the starter implementation new services should replace.
-package example
+// Command exampleapp is the starter CLI entry point new services should replace.
+package main
 
-import "log"
+import (
+	"flag"
+	"log"
+	"os"
 
-// Args holds the inputs for Run.
-type Args struct {
-	// File that contains the input data.
-	File string
-}
+	"github.com/cloudfra/template-go/internal/exampleapp"
+)
 
-// Run executes the example application logic.
-func Run(args Args) error {
-	log.Printf("Running example with file: %s", args.File)
-	return nil
+var fileFlag = flag.String("file", "", "Input File")
+
+func main() {
+	flag.Parse()
+	if err := exampleapp.Run(exampleapp.Args{
+		File: *fileFlag,
+	}); err != nil {
+		log.Printf("ERROR: %s", err)
+		os.Exit(1)
+	}
 }
