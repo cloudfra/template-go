@@ -41,7 +41,7 @@ boilerplate and start with working infrastructure on day one.
 git clone git@github.com:cloudfra/template-go.git
 # Build binaries for every supported platform
 make -j$(nproc)
-# Build and run the example binary for your current platform
+# Build and run the exampleapp binary for your current platform
 make run
 ```
 
@@ -63,7 +63,7 @@ package; the build system picks it up automatically.
 | Target                             | Description                                                                                                    |
 | ---------------------------------- | -------------------------------------------------------------------------------------------------------------- |
 | `make` / `make all`                | Build binaries for every supported platform                                                                    |
-| `make run`                         | Build and run the example binary                                                                               |
+| `make run`                         | Build and run the exampleapp binary                                                                               |
 | `make test`                        | Run the unit test suite                                                                                        |
 | `make bench`                       | Run benchmarks                                                                                                 |
 | `make test-deflake`                | Re-run tests to catch flakes                                                                                   |

@@ -22,17 +22,17 @@ ARG BINARY_PATH
 
 WORKDIR /app/
 
-COPY --chown=nonroot $BINARY_PATH /app/example
+COPY --chown=nonroot $BINARY_PATH /app/exampleapp
 COPY --chown=nonroot LICENSE /app/LICENSE
 
-ENTRYPOINT ["/app/example"]
+ENTRYPOINT ["/app/exampleapp"]
 
 # Standardized Docker Image Labels
 # https://github.com/opencontainers/image-spec/blob/master/annotations.md
 LABEL \
     org.opencontainers.image.created="${BUILD_DATE}" \
     org.opencontainers.image.authors="Cloudfra <cloudfra@googlegroups.com>" \
-    org.opencontainers.image.url="https://github.com/cloudfra/example" \
+    org.opencontainers.image.url="https://github.com/cloudfra/exampleapp" \
     org.opencontainers.image.documentation="https://github.com/cloudfra/template-go" \
     org.opencontainers.image.source="https://github.com/cloudfra/template-go" \
     org.opencontainers.image.version="${BUILD_VERSION}" \

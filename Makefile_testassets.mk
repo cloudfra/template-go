@@ -12,12 +12,4 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-REGISTRY = ghcr.io/cloudfra
-PROTOS =
 TEST_ASSETS =
-ASSETS = $(PROTOS)
-GO_PACKAGE = github.com/cloudfra/template-go
-ALL_APPS = exampleapp
-PRODUCTION=1
-
-include Makefile_build.mk
