@@ -63,6 +63,8 @@ jobs:
 
       - name: Clean
         run: make clean
+      - name: Build Assets
+        run: make assets testassets
       - name: Download Dependencies
         run: make deps
       - name: Install Toolchain
@@ -205,6 +207,8 @@ jobs:
 
       - name: Clean
         run: make clean
+      - name: Build Assets
+        run: make assets testassets
       - name: Download Dependencies
         run: make deps
       - name: Install Toolchain
