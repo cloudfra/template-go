@@ -34,46 +34,46 @@ else
 	IGNORE_LINT_CHECK = -
 endif
 
-ifndef LINUX_PLATFORMS
+ifeq ($(origin LINUX_PLATFORMS),undefined)
 LINUX_PLATFORMS = linux/386 linux/amd64 linux/arm/v5 linux/arm/v6 linux/arm/v7 linux/arm64 linux/loong64 linux/s390x linux/ppc64 linux/ppc64le linux/riscv64 linux/mips64le linux/mips linux/mipsle linux/mips64
 endif
-ifndef ANDROID_PLATFORMS
+ifeq ($(origin ANDROID_PLATFORMS),undefined)
 ANDROID_PLATFORMS = android/arm64 # android/386 android/amd64 android/arm android/arm/v5 android/arm/v6 android/arm/v7
 endif
-ifndef WINDOWS_PLATFORMS
+ifeq ($(origin WINDOWS_PLATFORMS),undefined)
 WINDOWS_PLATFORMS = windows/386 windows/amd64 windows/arm64 # windows/arm/v5 windows/arm/v6 windows/arm/v7
 endif
-ifndef IOS_PLATFORMS
+ifeq ($(origin IOS_PLATFORMS),undefined)
 IOS_PLATFORMS = # ios/amd64 ios/arm64
 endif
-ifndef DARWIN_PLATFORMS
+ifeq ($(origin DARWIN_PLATFORMS),undefined)
 DARWIN_PLATFORMS = darwin/amd64 darwin/arm64
 endif
-ifndef DRAGONFLY_PLATFORMS
+ifeq ($(origin DRAGONFLY_PLATFORMS),undefined)
 DRAGONFLY_PLATFORMS = dragonfly/amd64
 endif
-ifndef FREEBSD_PLATFORMS
+ifeq ($(origin FREEBSD_PLATFORMS),undefined)
 FREEBSD_PLATFORMS = freebsd/386 freebsd/amd64 freebsd/arm/v5 freebsd/arm/v6 freebsd/arm/v7 freebsd/arm64
 endif
-ifndef NETBSD_PLATFORMS
+ifeq ($(origin NETBSD_PLATFORMS),undefined)
 NETBSD_PLATFORMS = netbsd/amd64 netbsd/arm64 netbsd/386 netbsd/arm/v5 netbsd/arm/v6 netbsd/arm/v7
 endif
-ifndef OPENBSD_PLATFORMS
+ifeq ($(origin OPENBSD_PLATFORMS),undefined)
 OPENBSD_PLATFORMS = openbsd/386 openbsd/amd64 openbsd/arm/v5 openbsd/arm/v6 openbsd/arm/v7 openbsd/arm64 # openbsd/mips64
 endif
-ifndef PLAN9_PLATFORMS
+ifeq ($(origin PLAN9_PLATFORMS),undefined)
 PLAN9_PLATFORMS = plan9/386 plan9/amd64 plan9/arm/v5 plan9/arm/v6 plan9/arm/v7
 endif
-ifndef SOLARIS_PLATFORMS
+ifeq ($(origin SOLARIS_PLATFORMS),undefined)
 SOLARIS_PLATFORMS = solaris/amd64
 endif
-ifndef JS_PLATFORMS
+ifeq ($(origin JS_PLATFORMS),undefined)
 JS_PLATFORMS = js/wasm
 endif
-ifndef ILLUMOS_PLATFORMS
+ifeq ($(origin ILLUMOS_PLATFORMS),undefined)
 ILLUMOS_PLATFORMS = illumos/amd64
 endif
-ifndef AIX_PLATFORMS
+ifeq ($(origin AIX_PLATFORMS),undefined)
 AIX_PLATFORMS = aix/ppc64
 endif
 MAIN_PLATFORMS = windows/amd64 linux/amd64 linux/arm64
