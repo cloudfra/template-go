@@ -64,6 +64,8 @@ jobs:
       #   run: git config --system --add safe.directory /__w/
 
       - name: Install Signing Dependencies
+        # Signing is only needed for release/tag builds, not for PR validation.
+        if: ${{ github.event_name != 'pull_request' }}
         run: |
           sudo apt-get update
           sudo apt-get -y -q install osslsigncode binutils openssl
@@ -81,6 +83,8 @@ jobs:
       - name: Test
         run: make test
       - name: Test (Deflake)
+        # Re-runs tests for flaky detection; not needed for PR correctness.
+        if: ${{ github.event_name != 'pull_request' }}
         run: make test-deflake
       - name: Coverage
         run: make coverage.txt coverage.xml
@@ -108,9 +112,11 @@ jobs:
           label: code-coverage/gotest
 
       - name: Benchmark
+        # Benchmarks are for performance tracking, not PR correctness.
+        if: ${{ github.event_name != 'pull_request' }}
         run: make benchmark.html
       - name: Publish Benchmark (7 Days)
-        # https://github.com/actions/upload-artifact
+        if: ${{ github.event_name != 'pull_request' }}
         uses: actions/upload-artifact@v7
         continue-on-error: true
         with:
@@ -121,6 +127,8 @@ jobs:
           if-no-files-found: error
 
       - name: Build Binaries
+        # Cross-platform release binary builds are not needed for PR validation.
+        if: ${{ github.event_name != 'pull_request' }}
         run: make all -j"$(nproc)"
 
       - name: Set up Docker Buildx (Scan)
@@ -226,14 +234,18 @@ jobs:
       - name: Test
         run: make test
       - name: Test (Deflake)
+        # Re-runs tests 5× for flaky detection; not needed for PR correctness.
+        if: ${{ github.event_name != 'pull_request' }}
         run: make GO_TEST_COUNT=5 test-deflake
       - name: Coverage
         run: make coverage.txt coverage.xml
 
       - name: Benchmark
+        # Benchmarks are for performance tracking, not PR correctness.
+        if: ${{ github.event_name != 'pull_request' }}
         run: make benchmark.html
       - name: Publish Benchmark (7 Days)
-        # https://github.com/actions/upload-artifact
+        if: ${{ github.event_name != 'pull_request' }}
         uses: actions/upload-artifact@v7
         continue-on-error: true
         with:
