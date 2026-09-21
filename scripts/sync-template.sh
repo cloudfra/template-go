@@ -183,10 +183,7 @@ echo
 # .git and .github are excluded (.github is synced as a directory instead).
 list_managed_files() {
   local root="$1"
-  ( cd "$root" && find . -maxdepth 1 -type f \
-      \( -name 'Makefile_*.mk' -o -name '.*' \) \
-      ! -name 'Makefile_testassets.mk' \
-      ! -name '.git' ! -name '.github' )
+  ( cd "$root" && find . -maxdepth 1 -type f \( -name 'Makefile_*.mk' -o -name '.*' \) ! -name 'Makefile_testassets.mk' ! -name '.git' ! -name '.github' )
 }
 
 declare -A T_SET=() S_SET=()
