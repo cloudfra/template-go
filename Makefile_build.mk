@@ -203,6 +203,32 @@ bench: $(TEST_ASSETS)
 benchmark.html: $(TEST_ASSETS) build/toolchain/bin/vizb$(EXE)
 	$(GO) test -json -bench=. -benchmem -tags testing ${SOURCE_DIRS} | build/toolchain/bin/vizb$(EXE) -o benchmark.html
 
+# Appends plain-text benchmark results to the workflow run's job summary
+# page when run in CI (GITHUB_STEP_SUMMARY is set by GitHub Actions),
+# alongside the interactive benchmark.html artifact - Actions artifacts are
+# zip-wrapped and buried behind several clicks (Actions tab -> run ->
+# Artifacts -> download -> unzip), so nothing about a regression was
+# visible without deliberately going and looking. Kept here rather than as
+# an inline run: script in deploy.yaml so both OS jobs share one
+# implementation under the same shell make already assumes for every other
+# recipe (a prior version used a raw pwsh script directly in the workflow,
+# which broke because this repo's self-hosted Windows runner does not have
+# pwsh installed). -run='^$' skips ordinary tests; those are covered by the
+# Test step. Falls back to plain stdout locally, where GITHUB_STEP_SUMMARY
+# is unset.
+benchmark-summary: $(TEST_ASSETS)
+ifdef GITHUB_STEP_SUMMARY
+	@{ \
+		echo "### Benchmark results"; \
+		echo; \
+		echo '```'; \
+		$(GO) test -run='^$$' -bench=. -benchmem -tags testing ${SOURCE_DIRS}; \
+		echo '```'; \
+	} >> "$(GITHUB_STEP_SUMMARY)"
+else
+	$(GO) test -run='^$$' -bench=. -benchmem -tags testing ${SOURCE_DIRS}
+endif
+
 test: test-go test-tf
 
 test-go: $(TEST_ASSETS)
@@ -348,4 +374,4 @@ system-info:
 sync-upstream:
 	-git fetch origin; git add -A; git commit -m"Save pending changes."; git rebase -i origin/main
 
-.PHONY: tools all assets testassets protos windows-binaries release-binaries wasm-binaries lint lint-terraform lint-go lint-docker lint-yaml lint-shell lint-markdown lint-vuln bench test test-go test-deflake test-tf deps clean presubmit ensure-builder docker-images scan-images images linux-images windows-images no-sudo system-info sync-upstream
+.PHONY: tools all assets testassets protos windows-binaries release-binaries wasm-binaries lint lint-terraform lint-go lint-docker lint-yaml lint-shell lint-markdown lint-vuln bench benchmark-summary test test-go test-deflake test-tf deps clean presubmit ensure-builder docker-images scan-images images linux-images windows-images no-sudo system-info sync-upstream
