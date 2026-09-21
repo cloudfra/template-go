@@ -113,6 +113,10 @@ jobs:
         # Benchmarks are for performance tracking, not PR correctness.
         if: ${{ github.event_name != 'pull_request' }}
         run: make benchmark.html
+      - name: Benchmark Summary
+        # Same guard as the Benchmark step above: only on non-PR runs.
+        if: ${{ github.event_name != 'pull_request' }}
+        run: make benchmark-summary
       - name: Publish Benchmark (7 Days)
         if: ${{ github.event_name != 'pull_request' }}
         uses: actions/upload-artifact@v7
@@ -238,6 +242,10 @@ jobs:
         # Benchmarks are for performance tracking, not PR correctness.
         if: ${{ github.event_name != 'pull_request' }}
         run: make benchmark.html
+      - name: Benchmark Summary
+        # Same guard as the Benchmark step above: only on non-PR runs.
+        if: ${{ github.event_name != 'pull_request' }}
+        run: make benchmark-summary
       - name: Publish Benchmark (7 Days)
         if: ${{ github.event_name != 'pull_request' }}
         uses: actions/upload-artifact@v7

@@ -15,6 +15,8 @@
 package exampleapp
 
 import (
+	"io"
+	"log/slog"
 	"testing"
 )
 
@@ -25,6 +27,14 @@ func TestRun(t *testing.T) {
 }
 
 func BenchmarkRun(b *testing.B) {
+	// Run logs on every call; left at its default stderr output, one log
+	// line per iteration floods benchmark output (plain text or -json) with
+	// ~b.N lines of noise, burying the actual result line. Silence the
+	// default slog logger for the duration of the loop, then restore it.
+	prev := slog.Default()
+	defer slog.SetDefault(prev)
+	slog.SetDefault(slog.New(slog.NewTextHandler(io.Discard, nil)))
+
 	for b.Loop() {
 		if err := Run(Args{}); err != nil {
 			b.Errorf("Run() failed, %s", err)
