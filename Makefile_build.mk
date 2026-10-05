@@ -245,6 +245,10 @@ clean:
 	-chmod -R +w build/
 	rm -rf build/
 	rm -rf output/
+	# Remove downloaded test assets, if any. The `strip` guard keeps an empty
+	# list (the template default) from expanding to a bare `rm -rf` with no
+	# operands, so an empty TEST_ASSETS never deletes anything.
+	@if [ -n "$(strip $(TEST_ASSETS))" ]; then rm -rf $(TEST_ASSETS); fi
 
 presubmit: no-sudo tools assets testassets lint all test-deflake release-binaries
 
