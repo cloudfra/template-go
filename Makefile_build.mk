@@ -272,9 +272,8 @@ deps:
 
 clean:
 	rm -f coverage.txt
-	-chmod -R +w build/
-	rm -rf build/
-	rm -rf output/
+	-@if [ -n build/ ]; then chmod -R +w build/; rm -rf build/; fi
+	@if [ -n output/ ]; then rm -rf output/; fi
 	@if [ -n "$(strip $(ASSETS))" ]; then rm -rf $(ASSETS); fi
 	@if [ -n "$(strip $(TEST_ASSETS))" ]; then rm -rf $(TEST_ASSETS); fi
 
