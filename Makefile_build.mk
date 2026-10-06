@@ -58,6 +58,9 @@ ifeq ($(origin IOS_PLATFORMS),undefined)
 # iOS SDK, so it needs a macOS host and isn't built.
 IOS_PLATFORMS = ios/amd64
 endif
+else
+ANDROID_PLATFORMS = 
+IOS_PLATFORMS =
 endif
 ifeq ($(origin DARWIN_PLATFORMS),undefined)
 DARWIN_PLATFORMS = darwin/amd64 darwin/arm64
