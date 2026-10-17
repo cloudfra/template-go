@@ -21,6 +21,7 @@ GOLANG_PROTOBUF_VERSION = latest
 # https://github.com/grpc-ecosystem/grpc-gateway/releases
 GRPC_GATEWAY_VERSION = latest
 # https://github.com/protocolbuffers/protobuf/releases
+# https://github.com/protocolbuffers/protobuf/releases
 PROTOC_VERSION = 36.2
 
 ifeq ($(OS),Windows_NT)

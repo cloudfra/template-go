@@ -18,7 +18,7 @@ include Makefile_core.mk
 ACTIONLINT_VERSION=latest
 # https://github.com/docker/compose/releases
 DOCKERCOMPOSE_VERSION = 5.6.0
-# https://developer.hashicorp.com/terraform/install
+# https://github.com/hashicorp/terraform/releases
 TERRAFORM_VERSION = 1.16.6
 # https://github.com/cloudfra/certtool/releases
 CERTTOOL_VERSION = 0.7.0
