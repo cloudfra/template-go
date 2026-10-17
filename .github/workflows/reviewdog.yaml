@@ -81,7 +81,7 @@ jobs:
       - name: Check out code.
         uses: actions/checkout@v7
       - name: codespell
-        uses: codespell-project/actions-codespell@v2.2
+        uses: codespell-project/actions-codespell@v2.4
         with:
           # third_party is vendored upstream proto sources we don't maintain;
           # codespell's dictionary is broad enough to flag real typos in it
