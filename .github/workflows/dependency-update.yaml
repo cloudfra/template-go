@@ -92,22 +92,10 @@ jobs:
           title: "chore: update dependencies"
           # Mirrors the set of paths update-project.sh writes to. Keeping it
           # explicit stops build leftovers from landing in the PR, and keeps
-          # the diff reviewable.
-          add-paths: |
-            Makefile*.mk
-            install/terraform/*.tf
-            third_party/
-            go.mod
-          body: |
-            Weekly dependency refresh produced by `scripts/update-project.sh`.
-
-            - Toolchain/tool pins in the `Makefile_*.mk` files, resolved from
-              each tool's authoritative source (GitHub releases, the HashiCorp
-              releases API, or the Go module proxy).
-            - Terraform provider pins and `required_version` in
-              `install/terraform`.
-            - Vendored protos under `third_party/`.
-            - `go.mod`.
-
-            The script leaves changes in the working tree without committing,
-            so this PR is the review point. Merging it is a human decision.
+          # the diff reviewable. Comma-separated rather than a block scalar:
+          # workflow YAML in this repo stays free of inline multi-line
+          # payloads (see "GitHub Actions workflows" in CONTRIBUTING.md).
+          add-paths: Makefile*.mk,install/terraform/*.tf,third_party/,go.mod
+          # Same convention: the PR body is a file in the repo, not a YAML
+          # block scalar in this workflow.
+          body-path: .github/dependency-update-pr-body.md
