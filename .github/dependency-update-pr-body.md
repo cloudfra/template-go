@@ -1,7 +1,9 @@
-# Daily dependency refresh
+# Periodic dependency refresh
 
-Produced by `scripts/update-project.sh`, run on the daily schedule in
-`.github/workflows/dependency-update.yaml`.
+Produced by `scripts/update-project.sh`, run on the Wednesday, Friday and
+Saturday schedule in `.github/workflows/dependency-update.yaml`. The script
+updates every area below in one pass, so the pins in this PR move together
+rather than one surface lagging behind another.
 
 - Toolchain and tool pins in the `Makefile_*.mk` files, resolved from each
   tool's authoritative source (GitHub releases, the HashiCorp releases API,

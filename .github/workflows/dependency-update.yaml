@@ -14,20 +14,23 @@
 
 name: dependency-update
 
-# Daily refresh of everything this repo pins: the tool versions in the
+# Periodic refresh of everything this repo pins: the tool versions in the
 # Makefile_*.mk files, the terraform provider pins under install/terraform,
 # the vendored protos under third_party, and the Go modules in go.mod
 # (moved through this repo's own "make deps" target). All of that lives in
-# scripts/update-project.sh so a scheduled run resolves versions exactly the
-# way a local run does.
+# scripts/update-project.sh, which updates every one of those areas in a
+# single pass, so a scheduled run resolves versions exactly the way a local
+# run does and no area is left lagging a day behind another.
 #
 # GitHub only runs "schedule:" triggers from the default branch, and delays
 # scheduled runs on private repos at peak times, so the time below is
 # approximate. workflow_dispatch allows an on-demand run of the same job.
 on:
   schedule:
-    # 09:00 UTC every day.
-    - cron: "0 9 * * *"
+    # 09:00 UTC on Wednesday, Friday and Saturday. Three spread-out days
+    # rather than every day: enough that a pin is never more than a few days
+    # stale, without a PR churn on days nothing has changed.
+    - cron: "0 9 * * 3,5,6"
   workflow_dispatch:
 
 concurrency:
@@ -84,10 +87,10 @@ jobs:
         with:
           token: ${{ github.token }}
           base: main
-          # One reused branch: a daily run updates the open PR in place
-          # instead of stacking another one on top of it. delete-branch
-          # cleans the branch up once the PR merges.
-          branch: chore/daily-dependency-update
+          # One reused branch: each scheduled run updates the open PR in
+          # place instead of stacking another one on top of it.
+          # delete-branch cleans the branch up once the PR merges.
+          branch: chore/periodic-dependency-update
           delete-branch: true
           commit-message: "chore: update dependencies"
           title: "chore: update dependencies"
