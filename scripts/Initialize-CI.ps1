@@ -19,10 +19,10 @@
 # to install or configure whatever a specific project needs on its Windows
 # runners: Windows features, extra toolchain, runner-local fixes.
 #
-# It deliberately does nothing here. scripts/sync-template.sh copies this file
-# into a project only when the project does not already have one and never
-# overwrites an existing copy, so anything added below survives a template
-# re-sync. A non-zero exit status fails the job, which is the intended way to
+# It deliberately does nothing here. scripts/template-go/sync-template.sh
+# copies this file into a project only when the project does not already have
+# one and never overwrites an existing copy, so anything added below survives
+# a template re-sync. A non-zero exit status fails the job, which is the intended way to
 # make a prerequisite failure visible.
 
 $ErrorActionPreference = 'Stop'
