@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: template-sync
+name: Sync template-go
 
 # Pull the template-managed files of a project created from this template
 # back up to the current upstream versions: the Makefile_*.mk includes,
