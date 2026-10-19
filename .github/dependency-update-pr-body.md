@@ -1,6 +1,6 @@
-# Weekly dependency refresh
+# Daily dependency refresh
 
-Produced by `scripts/update-project.sh`, run on the weekly schedule in
+Produced by `scripts/update-project.sh`, run on the daily schedule in
 `.github/workflows/dependency-update.yaml`.
 
 - Toolchain and tool pins in the `Makefile_*.mk` files, resolved from each
@@ -8,7 +8,9 @@ Produced by `scripts/update-project.sh`, run on the weekly schedule in
   or the Go module proxy).
 - Terraform provider pins and `required_version` under `install/terraform`.
 - Vendored protos under `third_party/`.
-- `go.mod`.
+- Go modules, moved to their latest releases by this repo's own `make deps`
+  target (`go get -u ./...`, `go mod tidy`, `go mod download`) and then
+  checked with `go mod verify`.
 
 The script leaves changes in the working tree without committing, so this
 PR is the review point. Merging it is a human decision.
