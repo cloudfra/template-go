@@ -225,7 +225,10 @@ jobs:
         # Windows counterpart of scripts/prepare-ci.sh: empty in the
         # template, never overwritten by sync-template.sh, and the place
         # for project-specific runner setup. See scripts/Initialize-CI.ps1.
-        shell: pwsh
+        # shell: powershell (Windows PowerShell 5.1), not pwsh: the
+        # self-hosted Windows runners have no PowerShell Core installed,
+        # so pwsh fails with "command not found".
+        shell: powershell
         run: ./scripts/Initialize-CI.ps1
       - name: System Information
         run: make system-info
