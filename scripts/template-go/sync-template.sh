@@ -388,8 +388,7 @@ if [[ -f "$SOURCE/$DEPLOY_WORKFLOW" ]]; then
     done < <(read_all_apps "$TARGET/Makefile")
   fi
   if (( ${#APPS[@]} == 0 )); then
-    echo "Warning: no ALL_APPS found in $TARGET/Makefile;" \
-      "$DEPLOY_WORKFLOW will keep the template's exampleapp release files." >&2
+    echo "Warning: no ALL_APPS found in $TARGET/Makefile; $DEPLOY_WORKFLOW keeps the template's exampleapp release files." >&2
   fi
 fi
 
