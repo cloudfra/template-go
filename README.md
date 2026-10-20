@@ -92,15 +92,38 @@ make bench
 The toolchain the template downloads covers Go, protobuf, Terraform and the
 linters. When a build, test or benchmark needs a tool on top of that — a
 codec, an emulator, a code generator — the project declares it in its own
-`Makefile`, above the `include Makefile_build.mk` line:
+`Makefile`, above the `include Makefile_build.mk` line. The download is
+picked for the machine doing the build with `HOST_OS`, `HOST_ARCH` and
+`$(EXE)` from `Makefile_core.mk`, the same conditionals
+`Makefile_toolchain.mk` uses for its own tools:
 
 ```make
 # GPL builds: a project has to accept ffmpeg's license before its CI
-# downloads one
-FFMPEG_VERSION = 7.1
-FFMPEG_PACKAGE = https://github.com/BtbN/FFmpeg-Builds/releases/download/autobuild-2025-04-27-18-06/ffmpeg-linux-x86_64-$(FFMPEG_VERSION).tar.xz
-
+# downloads one. BtbN publishes linux and Windows builds, pinned against
+# its "latest" tag so the version stays downloadable; its dated autobuild
+# tags get pruned.
+FFMPEG_VERSION = 8.1
+FFMPEG_STATIC_VERSION = b6.1.1
 PROJECT_TOOLS = build/toolchain/bin/ffmpeg$(EXE)
+
+ifeq ($(HOST_OS),windows)
+FFMPEG_PACKAGE = https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-n$(FFMPEG_VERSION)-latest-win$(if $(filter arm64,$(HOST_ARCH)),arm64,64)-gpl-$(FFMPEG_VERSION).zip
+PROJECT_ARCHIVES = build/archives/ffmpeg.zip
+
+build/archives/ffmpeg.zip:
+	$(call download_archive,$(FFMPEG_PACKAGE),$@)
+
+build/toolchain/bin/ffmpeg$(EXE): build/archives/ffmpeg.zip
+	$(call install_tool,$<,$@,ffmpeg$(EXE),1)
+else ifeq ($(HOST_OS),darwin)
+# BtbN builds no macOS ffmpeg, so the macOS leg comes from a provider that
+# ships a bare executable per architecture
+FFMPEG_PACKAGE = https://github.com/eugeneware/ffmpeg-static/releases/download/$(FFMPEG_STATIC_VERSION)/ffmpeg-darwin-$(if $(filter arm64,$(HOST_ARCH)),arm,x)64
+
+build/toolchain/bin/ffmpeg$(EXE):
+	$(call install_binary,$(FFMPEG_PACKAGE),$@)
+else
+FFMPEG_PACKAGE = https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-n$(FFMPEG_VERSION)-latest-linux$(if $(filter arm arm64,$(HOST_ARCH)),arm64,64)-gpl-$(FFMPEG_VERSION).tar.xz
 PROJECT_ARCHIVES = build/archives/ffmpeg.tar.xz
 
 build/archives/ffmpeg.tar.xz:
@@ -108,7 +131,11 @@ build/archives/ffmpeg.tar.xz:
 
 build/toolchain/bin/ffmpeg$(EXE): build/archives/ffmpeg.tar.xz
 	$(call install_tool,$<,$@,bin/ffmpeg,1)
+endif
 ```
+
+`Makefile_core.mk` reports every Windows host as amd64, so a Windows on Arm
+build asks for the winarm64 asset with `make HOST_ARCH=arm64`.
 
 Both lists are empty in the template, so a project that needs nothing is
 unaffected. Declaring them is all the wiring needed:

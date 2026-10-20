@@ -43,14 +43,43 @@ include Makefile_core.mk
 #   build/toolchain/bin/ffmpeg$(EXE):
 #       $(GO) run ./internal/tools/installffmpeg -o "$@"
 #
-# A tool that is a plain release download needs two rules and the macros
-# below:
+# A tool that is a plain release download needs the macros below, with the
+# download chosen for the machine doing the build. Makefile_core.mk already
+# names it -- HOST_OS is linux, darwin or windows, HOST_ARCH is amd64 (arm
+# on Linux and arm64 on macOS when the host is one), and $(EXE) is .exe on
+# Windows and empty everywhere else -- and every *_PACKAGE in
+# Makefile_toolchain.mk picks its asset with the same conditionals. The
+# archive suffix and the member inside it change with the platform too, so
+# the rules belong inside them, not just the URL:
 #
 #   # https://github.com/BtbN/FFmpeg-Builds/releases (GPL builds: a project
-#   # has to accept ffmpeg's license before its CI downloads one)
-#   FFMPEG_VERSION = 7.1
-#   FFMPEG_PACKAGE = https://github.com/BtbN/FFmpeg-Builds/releases/download/autobuild-2025-04-27-18-06/ffmpeg-linux-x86_64-$(FFMPEG_VERSION).tar.xz
+#   # has to accept ffmpeg's license before its CI downloads one). The
+#   # "latest" tag keeps one asset per release branch, so a version pin
+#   # stays downloadable -- dated autobuild tags get pruned. BtbN builds no
+#   # macOS ffmpeg, so the darwin leg comes from another provider.
+#   FFMPEG_VERSION = 8.1
+#   FFMPEG_STATIC_VERSION = b6.1.1
 #   PROJECT_TOOLS = build/toolchain/bin/ffmpeg$(EXE)
+#
+#   ifeq ($(HOST_OS),windows)
+#   FFMPEG_PACKAGE = https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-n$(FFMPEG_VERSION)-latest-win$(if $(filter arm64,$(HOST_ARCH)),arm64,64)-gpl-$(FFMPEG_VERSION).zip
+#   PROJECT_ARCHIVES = build/archives/ffmpeg.zip
+#
+#   build/archives/ffmpeg.zip:
+#       $(call download_archive,$(FFMPEG_PACKAGE),$@)
+#
+#   # unzip -j flattens the archive, so the member is the bare file name.
+#   build/toolchain/bin/ffmpeg$(EXE): build/archives/ffmpeg.zip
+#       $(call install_tool,$<,$@,ffmpeg$(EXE),1)
+#   else ifeq ($(HOST_OS),darwin)
+#   # https://github.com/eugeneware/ffmpeg-static: a bare executable per
+#   # architecture, tagged with its own version rather than ffmpeg's.
+#   FFMPEG_PACKAGE = https://github.com/eugeneware/ffmpeg-static/releases/download/$(FFMPEG_STATIC_VERSION)/ffmpeg-darwin-$(if $(filter arm64,$(HOST_ARCH)),arm,x)64
+#
+#   build/toolchain/bin/ffmpeg$(EXE):
+#       $(call install_binary,$(FFMPEG_PACKAGE),$@)
+#   else
+#   FFMPEG_PACKAGE = https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-n$(FFMPEG_VERSION)-latest-linux$(if $(filter arm arm64,$(HOST_ARCH)),arm64,64)-gpl-$(FFMPEG_VERSION).tar.xz
 #   PROJECT_ARCHIVES = build/archives/ffmpeg.tar.xz
 #
 #   build/archives/ffmpeg.tar.xz:
@@ -58,11 +87,16 @@ include Makefile_core.mk
 #
 #   build/toolchain/bin/ffmpeg$(EXE): build/archives/ffmpeg.tar.xz
 #       $(call install_tool,$<,$@,bin/ffmpeg,1)
+#   endif
+#
+# Makefile_core.mk reports every Windows host as amd64, so a Windows on Arm
+# build asks for the winarm64 asset with `make HOST_ARCH=arm64`.
 #
 # Keep the version in a variable named *_VERSION and the URL in *_PACKAGE:
 # scripts/template-go/update-project.sh scans every Makefile_*.mk for those
 # and moves them to the newest release, which is how the pins in
-# Makefile_toolchain.mk are kept current.
+# Makefile_toolchain.mk are kept current. It asks make itself for the URL,
+# so the branch of the conditionals this host selects is the one it checks.
 #
 # This file is template-managed: a template sync replaces it wholesale, so
 # project settings belong in the Makefile. Everything here is assigned with
