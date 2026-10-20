@@ -18,11 +18,14 @@
 # project wiring the dependency up itself.
 TEST_DEPS = $(TEST_ASSETS)
 
+# Makefile_projecttools.mk comes before the includes whose rules call its
+# download macros. Recipes expand lazily so the order is not load-bearing, but
+# it keeps the dependency between them explicit.
 include Makefile_core.mk
+include Makefile_projecttools.mk
 include Makefile_proto.mk
 include Makefile_toolchain.mk
 include Makefile_testassets.mk
-include Makefile_projecttools.mk
 
 DOCKER_PUSH = --push
 

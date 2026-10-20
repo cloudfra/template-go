@@ -153,6 +153,11 @@ endef
 # like a successful build. A failure does leave the temporary directory
 # behind; the next run of the rule removes it before unpacking again, and
 # `make clean` removes build/toolchain wholesale.
+#
+# The copy is `cp -f` because an archive member can be read-only: protoc.zip
+# stores bin/protoc as 0555, and a plain cp of a new member over an installed
+# 0555 binary fails with "Permission denied", which makes a rebuild of an
+# already-installed tool impossible.
 define install_tool
 	set -e; \
 	tmp="$(TOOLCHAIN_DIR)/$(call archive_stem,$(1))-temp"; \
@@ -167,7 +172,7 @@ define install_tool
 		*.tar) tar -xf "$(REPOSITORY_ROOT)/$(1)" -C "$$tmp" $(if $(4),--strip-components=$(4),);; \
 		*) echo "install_tool: don't know how to unpack $(1)" >&2; exit 1;; \
 	esac; \
-	cp "$$tmp/$(3)" "$(REPOSITORY_ROOT)/$(2)"; \
+	cp -f "$$tmp/$(3)" "$(REPOSITORY_ROOT)/$(2)"; \
 	chmod +x "$(REPOSITORY_ROOT)/$(2)"; \
 	rm -rf "$$tmp"
 endef

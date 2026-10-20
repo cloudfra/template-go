@@ -135,14 +135,10 @@ $(ACTIONLINT):
 	GOBIN="$(dir $(REPOSITORY_ROOT)/$@)" $(GO_WITH_PROXY) install github.com/rhysd/actionlint/cmd/actionlint@v$(ACTIONLINT_VERSION)
 
 $(CERTTOOL):
-	mkdir -p "$(dir $@)"
-	$(CURL) -Lo $@ "$(CERTTOOL_PACKAGE)"
-	chmod +x "$(REPOSITORY_ROOT)/$@"
+	$(call install_binary,$(CERTTOOL_PACKAGE),$@)
 
 $(DOCKER_COMPOSE):
-	mkdir -p "$(dir $@)"
-	$(CURL) -Lo $@ "$(DOCKERCOMPOSE_PACKAGE)"
-	chmod +x "$(REPOSITORY_ROOT)/$@"
+	$(call install_binary,$(DOCKERCOMPOSE_PACKAGE),$@)
 
 $(GOCOVER_COBERTURA):
 	mkdir -p "$(dir $@)"
@@ -166,9 +162,7 @@ $(GOVULNCHECK):
 
 # Not a Go module, so it's fetched as a prebuilt binary like terraform/docker-compose above.
 $(HADOLINT):
-	mkdir -p "$(dir $@)"
-	$(CURL) -o $@ -L "$(HADOLINT_PACKAGE)"
-	chmod +x "$(REPOSITORY_ROOT)/$@"
+	$(call install_binary,$(HADOLINT_PACKAGE),$@)
 
 # Style/doc-comment linter; not covered by golangci-lint's default config.
 $(REVIVE):
@@ -176,16 +170,7 @@ $(REVIVE):
 	GOBIN="$(dir $(REPOSITORY_ROOT)/$@)" $(GO_WITH_PROXY) install github.com/mgechev/revive@v$(REVIVE_VERSION)
 
 $(RUMDL): $(RUMDL_ARCHIVE)
-	mkdir -p "$(dir $@)"
-	mkdir -p "$(TOOLCHAIN_DIR)/rumdl-temp/"
-ifeq ($(HOST_OS),windows)
-	(cd "$(TOOLCHAIN_DIR)/rumdl-temp/" && unzip -q "$(REPOSITORY_ROOT)/$<")
-else
-	tar -xzf $< -C "$(TOOLCHAIN_DIR)/rumdl-temp/"
-endif
-	cp "$(TOOLCHAIN_DIR)/rumdl-temp/rumdl$(EXE)" "$(TOOLCHAIN_BIN)/rumdl$(EXE)"
-	chmod +x "$(TOOLCHAIN_BIN)/rumdl$(EXE)"
-	rm -rf "$(TOOLCHAIN_DIR)/rumdl-temp/"
+	$(call install_tool,$<,$@,rumdl$(EXE))
 
 # Also not a Go module. Unlike hadolint, shellcheck ships as an archive (a
 # .zip with shellcheck.exe on Windows, a .tar.xz with a versioned
@@ -193,24 +178,10 @@ endif
 # straight download. actionlint auto-detects it on PATH (which already
 # includes this toolchain dir), so no separate lint invocation is needed.
 $(SHELLCHECK): $(SHELLCHECK_ARCHIVE)
-	mkdir -p "$(dir $@)"
-	mkdir -p "$(TOOLCHAIN_DIR)/shellcheck-temp/"
-ifeq ($(HOST_OS),windows)
-	(cd "$(TOOLCHAIN_DIR)/shellcheck-temp/" && unzip -q -j "$(REPOSITORY_ROOT)/$<")
-else
-	tar -xJf $< -C "$(TOOLCHAIN_DIR)/shellcheck-temp/" --strip-components=1
-endif
-	cp "$(TOOLCHAIN_DIR)/shellcheck-temp/shellcheck$(EXE)" "$(TOOLCHAIN_BIN)/shellcheck$(EXE)"
-	chmod +x "$(TOOLCHAIN_BIN)/shellcheck$(EXE)"
-	rm -rf "$(TOOLCHAIN_DIR)/shellcheck-temp/"
+	$(call install_tool,$<,$@,shellcheck$(EXE),1)
 
 $(TERRAFORM): build/archives/terraform.zip
-	mkdir -p "$(dir $@)"
-	mkdir -p "$(TOOLCHAIN_DIR)/terraform-temp/"
-	cp "$(ARCHIVES_DIR)/terraform.zip" "$(TOOLCHAIN_DIR)/terraform-temp/"
-	(cd "$(TOOLCHAIN_DIR)/terraform-temp/" && unzip -q -j terraform.zip)
-	cp "$(TOOLCHAIN_DIR)/terraform-temp/terraform$(EXE)" "$(TOOLCHAIN_BIN)/terraform$(EXE)"
-	rm -rf "$(TOOLCHAIN_DIR)/terraform-temp/"
+	$(call install_tool,$<,$@,terraform$(EXE),1)
 
 $(TFLINT):
 	mkdir -p "$(dir $@)"
@@ -220,16 +191,7 @@ $(TFLINT):
 # shellcheck the binary sits at the archive root with no versioned
 # subdirectory, so no --strip-components/-j is needed.
 $(TRIVY): $(TRIVY_ARCHIVE)
-	mkdir -p "$(dir $@)"
-	mkdir -p "$(TOOLCHAIN_DIR)/trivy-temp/"
-ifeq ($(HOST_OS),windows)
-	(cd "$(TOOLCHAIN_DIR)/trivy-temp/" && unzip -q "$(REPOSITORY_ROOT)/$<")
-else
-	tar -xzf $< -C "$(TOOLCHAIN_DIR)/trivy-temp/"
-endif
-	cp "$(TOOLCHAIN_DIR)/trivy-temp/trivy$(EXE)" "$(TOOLCHAIN_BIN)/trivy$(EXE)"
-	chmod +x "$(TOOLCHAIN_BIN)/trivy$(EXE)"
-	rm -rf "$(TOOLCHAIN_DIR)/trivy-temp/"
+	$(call install_tool,$<,$@,trivy$(EXE))
 
 $(VIZB):
 	# https://github.com/goptics/vizb
@@ -242,26 +204,16 @@ $(ANDROID_NDK_CLANG): build/archives/android-ndk.zip
 	touch "$(REPOSITORY_ROOT)/$@"
 
 build/archives/android-ndk.zip:
-	mkdir -p "$(dir $@)"
-	$(CURL) -o "$(REPOSITORY_ROOT)/$@" -L "$(ANDROID_NDK_PACKAGE)"
-	touch "$(REPOSITORY_ROOT)/$@"
+	$(call download_archive,$(ANDROID_NDK_PACKAGE),$@)
 
 build/archives/terraform.zip:
-	mkdir -p "$(dir $@)"
-	$(CURL) -o "$(ARCHIVES_DIR)/terraform.zip" -L "$(TERRAFORM_PACKAGE)"
-	touch "$(REPOSITORY_ROOT)/$@"
+	$(call download_archive,$(TERRAFORM_PACKAGE),$@)
 
 $(RUMDL_ARCHIVE):
-	mkdir -p "$(dir $@)"
-	$(CURL) -o $@ -L "$(RUMDL_PACKAGE)"
-	touch "$(REPOSITORY_ROOT)/$@"
+	$(call download_archive,$(RUMDL_PACKAGE),$@)
 
 $(SHELLCHECK_ARCHIVE):
-	mkdir -p "$(dir $@)"
-	$(CURL) -o $@ -L "$(SHELLCHECK_PACKAGE)"
-	touch "$(REPOSITORY_ROOT)/$@"
+	$(call download_archive,$(SHELLCHECK_PACKAGE),$@)
 
 $(TRIVY_ARCHIVE):
-	mkdir -p "$(dir $@)"
-	$(CURL) -o $@ -L "$(TRIVY_PACKAGE)"
-	touch "$(REPOSITORY_ROOT)/$@"
+	$(call download_archive,$(TRIVY_PACKAGE),$@)
