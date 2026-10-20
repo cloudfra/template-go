@@ -74,7 +74,7 @@ PROJECT_ARCHIVES ?=
 
 # A test that shells out to one of this project's tools shouldn't have to say
 # so: the test and benchmark rules wait for TEST_DEPS, which Makefile_build.mk
-# initialises to the test assets and this file extends with the tools. Empty
+# initializes to the test assets and this file extends with the tools. Empty
 # PROJECT_TOOLS leaves it exactly as it was.
 TEST_DEPS += $(PROJECT_TOOLS)
 
