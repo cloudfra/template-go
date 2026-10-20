@@ -69,6 +69,7 @@ package; the build system picks it up automatically.
 | `make test-deflake`                | Re-run tests to catch flakes                                                                                   |
 | `make lint`                        | Run the full lint suite (see Features)                                                                         |
 | `make protos`                      | Generate code from `.proto` definitions                                                                        |
+| `make projecttools`                | Fetch the extra tools this project declares (see Project-specific tools)                                       |
 | `make docker-images`               | Build a quick single-arch (`linux/amd64`) Docker image per app, tagged locally                                 |
 | `make scan-images`                 | Build a local single-arch image per app and scan it with trivy, failing on HIGH/CRITICAL vulnerabilities       |
 | `make images`                      | Build every supported Linux/Windows platform and merge them into one multi-arch manifest per app               |
@@ -85,6 +86,50 @@ package; the build system picks it up automatically.
 make test
 make bench
 ```
+
+## Project-specific tools
+
+The toolchain the template downloads covers Go, protobuf, Terraform and the
+linters. When a build, test or benchmark needs a tool on top of that — a
+codec, an emulator, a code generator — the project declares it in its own
+`Makefile`, above the `include Makefile_build.mk` line:
+
+```make
+# GPL builds: a project has to accept ffmpeg's license before its CI
+# downloads one
+FFMPEG_VERSION = 7.1
+FFMPEG_PACKAGE = https://github.com/BtbN/FFmpeg-Builds/releases/download/autobuild-2025-04-27-18-06/ffmpeg-linux-x86_64-$(FFMPEG_VERSION).tar.xz
+
+PROJECT_TOOLS = build/toolchain/bin/ffmpeg$(EXE)
+PROJECT_ARCHIVES = build/archives/ffmpeg.tar.xz
+
+build/archives/ffmpeg.tar.xz:
+	$(call download_archive,$(FFMPEG_PACKAGE),$@)
+
+build/toolchain/bin/ffmpeg$(EXE): build/archives/ffmpeg.tar.xz
+	$(call install_tool,$<,$@,bin/ffmpeg,1)
+```
+
+Both lists are empty in the template, so a project that needs nothing is
+unaffected. Declaring them is all the wiring needed:
+
+- `make tools`, `make assets` and `make projecttools` fetch the tools;
+  `make test`, `make test-deflake` and `make bench` wait for them.
+- They land in `build/toolchain/bin`, which is already on `PATH`, so a test
+  finds one by name (`exec.Command("ffmpeg", ...)`) with no extra plumbing.
+- `make clean` removes them.
+
+`download_archive`, `install_binary` and `install_tool` in
+`Makefile_projecttools.mk` cover the usual shapes — a release archive (`.zip`,
+`.tar.gz`, `.tgz`, `.tar.xz`, `.tar.bz2`, `.tar`) or a bare executable. A tool
+that needs something cleverer just gets a plain recipe: fetching ffmpeg with a
+command from the project's own repo is what lets it pick the build for the
+platform, verify a checksum and accept a license.
+
+Keep the version in a `*_VERSION` variable and the URL in `*_PACKAGE`:
+`scripts/template-go/update-project.sh` scans every `Makefile_*.mk` for those
+and moves them to the newest release, the same way this repo's own pins are
+kept current.
 
 ## Simulating CI locally
 
