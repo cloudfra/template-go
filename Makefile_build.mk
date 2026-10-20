@@ -12,10 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# What `make test` runs. Set before the includes below because
+# Makefile_javascript.mk appends test-js to it when the project sets
+# JAVASCRIPT_DIR, and the test rule further down is read from this list.
+TEST_TARGETS = test-go test-tf
+
 include Makefile_core.mk
 include Makefile_proto.mk
 include Makefile_toolchain.mk
 include Makefile_testassets.mk
+include Makefile_javascript.mk
 
 DOCKER_PUSH = --push
 
@@ -238,7 +244,7 @@ bench: $(TEST_ASSETS)
 benchmark.html: $(TEST_ASSETS) build/toolchain/bin/vizb$(EXE)
 	$(GO) test -json -bench=. -benchmem -tags testing ${SOURCE_DIRS} | build/toolchain/bin/vizb$(EXE) -o benchmark.html
 
-test: test-go test-tf
+test: $(TEST_TARGETS)
 
 test-go: $(TEST_ASSETS)
 	$(GO) test -shuffle=on -tags testing ${SOURCE_DIRS}
