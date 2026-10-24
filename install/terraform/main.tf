@@ -16,16 +16,16 @@
 
 terraform {
   # Keep in sync with the minor version of TERRAFORM_VERSION in the Makefile.
-  required_version = "~> 1.16"
+  required_version = "~> 1.17"
 
   required_providers {
     google = {
       source  = "hashicorp/google"
-      version = "8.7.0"
+      version = "8.8.1"
     }
     google-beta = {
       source  = "hashicorp/google-beta"
-      version = "8.7.0"
+      version = "8.8.1"
     }
     null = {
       source  = "hashicorp/null"
