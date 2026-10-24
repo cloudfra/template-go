@@ -69,6 +69,7 @@ package; the build system picks it up automatically.
 | `make test-deflake`                | Re-run tests to catch flakes                                                                                   |
 | `make lint`                        | Run the full lint suite (see Features)                                                                         |
 | `make protos`                      | Generate code from `.proto` definitions                                                                        |
+| `make projecttools`                | Fetch the extra tools this project declares (see Project-specific tools)                                       |
 | `make docker-images`               | Build a quick single-arch (`linux/amd64`) Docker image per app, tagged locally                                 |
 | `make scan-images`                 | Build a local single-arch image per app and scan it with trivy, failing on HIGH/CRITICAL vulnerabilities       |
 | `make images`                      | Build every supported Linux/Windows platform and merge them into one multi-arch manifest per app               |
@@ -85,6 +86,77 @@ package; the build system picks it up automatically.
 make test
 make bench
 ```
+
+## Project-specific tools
+
+The toolchain the template downloads covers Go, protobuf, Terraform and the
+linters. When a build, test or benchmark needs a tool on top of that — a
+codec, an emulator, a code generator — the project declares it in its own
+`Makefile`, above the `include Makefile_build.mk` line. The download is
+picked for the machine doing the build with `HOST_OS`, `HOST_ARCH` and
+`$(EXE)` from `Makefile_core.mk`, the same conditionals
+`Makefile_toolchain.mk` uses for its own tools:
+
+```make
+# GPL builds: a project has to accept ffmpeg's license before its CI
+# downloads one. BtbN publishes linux and Windows builds, pinned against
+# its "latest" tag so the version stays downloadable; its dated autobuild
+# tags get pruned.
+FFMPEG_VERSION = 8.1
+FFMPEG_STATIC_VERSION = b6.1.1
+PROJECT_TOOLS = build/toolchain/bin/ffmpeg$(EXE)
+
+ifeq ($(HOST_OS),windows)
+FFMPEG_PACKAGE = https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-n$(FFMPEG_VERSION)-latest-win$(if $(filter arm64,$(HOST_ARCH)),arm64,64)-gpl-$(FFMPEG_VERSION).zip
+PROJECT_ARCHIVES = build/archives/ffmpeg.zip
+
+build/archives/ffmpeg.zip:
+	$(call download_archive,$(FFMPEG_PACKAGE),$@)
+
+build/toolchain/bin/ffmpeg$(EXE): build/archives/ffmpeg.zip
+	$(call install_tool,$<,$@,ffmpeg$(EXE),1)
+else ifeq ($(HOST_OS),darwin)
+# BtbN builds no macOS ffmpeg, so the macOS leg comes from a provider that
+# ships a bare executable per architecture
+FFMPEG_PACKAGE = https://github.com/eugeneware/ffmpeg-static/releases/download/$(FFMPEG_STATIC_VERSION)/ffmpeg-darwin-$(if $(filter arm64,$(HOST_ARCH)),arm,x)64
+
+build/toolchain/bin/ffmpeg$(EXE):
+	$(call install_binary,$(FFMPEG_PACKAGE),$@)
+else
+FFMPEG_PACKAGE = https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-n$(FFMPEG_VERSION)-latest-linux$(if $(filter arm arm64,$(HOST_ARCH)),arm64,64)-gpl-$(FFMPEG_VERSION).tar.xz
+PROJECT_ARCHIVES = build/archives/ffmpeg.tar.xz
+
+build/archives/ffmpeg.tar.xz:
+	$(call download_archive,$(FFMPEG_PACKAGE),$@)
+
+build/toolchain/bin/ffmpeg$(EXE): build/archives/ffmpeg.tar.xz
+	$(call install_tool,$<,$@,bin/ffmpeg,1)
+endif
+```
+
+`Makefile_core.mk` reports every Windows host as amd64, so a Windows on Arm
+build asks for the winarm64 asset with `make HOST_ARCH=arm64`.
+
+Both lists are empty in the template, so a project that needs nothing is
+unaffected. Declaring them is all the wiring needed:
+
+- `make tools`, `make assets` and `make projecttools` fetch the tools;
+  `make test`, `make test-deflake` and `make bench` wait for them.
+- They land in `build/toolchain/bin`, which is already on `PATH`, so a test
+  finds one by name (`exec.Command("ffmpeg", ...)`) with no extra plumbing.
+- `make clean` removes them.
+
+`download_archive`, `install_binary` and `install_tool` in
+`Makefile_projecttools.mk` cover the usual shapes — a release archive (`.zip`,
+`.tar.gz`, `.tgz`, `.tar.xz`, `.tar.bz2`, `.tar`) or a bare executable. A tool
+that needs something cleverer just gets a plain recipe: fetching ffmpeg with a
+command from the project's own repo is what lets it pick the build for the
+platform, verify a checksum and accept a license.
+
+Keep the version in a `*_VERSION` variable and the URL in `*_PACKAGE`:
+`scripts/template-go/update-project.sh` scans every `Makefile_*.mk` for those
+and moves them to the newest release, the same way this repo's own pins are
+kept current.
 
 ## Simulating CI locally
 
