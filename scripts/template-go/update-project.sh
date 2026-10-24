@@ -666,13 +666,15 @@ bump_terraform() {
 # --- step 5: re-vendor third_party ------------------------------------------
 
 # The vendored proto trees are produced by make targets that unzip upstream
-# archives. The archives are cached under build/archives, so they are removed
-# first to force a fresh download rather than re-vendoring a stale copy.
+# archives. googleapis and grpc-gateway are fetched from their master branches
+# into build/archives, so those are removed first to force a fresh download
+# rather than re-vendoring a stale copy. protoc needs no such step: its archive
+# is cached under its version, so a PROTOC_VERSION bump already fetches anew.
 VENDOR_TARGETS=(
   "third_party/google_protobuf/include/google/LICENSE"
   "third_party/grpc_gateway/include/protoc-gen-openapiv2/LICENSE"
 )
-VENDOR_ARCHIVES=(protoc.zip googleapis.zip grpc-gateway.zip)
+VENDOR_ARCHIVES=(googleapis.zip grpc-gateway.zip)
 
 refresh_vendored() {
   echo

@@ -38,56 +38,53 @@ else
 	endif
 endif
 
-PROTOC := GOPATH="$(TOOLCHAIN_DIR)" "$(TOOLCHAIN_BIN)/protoc"
+# Installed into TOOLCHAIN_CACHE like the Makefile_toolchain.mk tools. The
+# protoc archive is kept there too: the third_party rules below vendor its
+# include files.
+PROTOC_ARCHIVE = $(call cache_path,protoc,$(PROTOC_VERSION),$(PROTOC_PACKAGE))
+PROTOC_BIN = $(call tool_path,protoc,$(PROTOC_VERSION))
+PROTOC_GEN_GO = $(call tool_path,protoc-gen-go,$(GOLANG_PROTOBUF_VERSION))
+PROTOC_GEN_GO_GRPC = $(call tool_path,protoc-gen-go-grpc,$(GOLANG_GRPC_VERSION))
+PROTOC_GEN_GRPC_GATEWAY = $(call tool_path,protoc-gen-grpc-gateway,$(GRPC_GATEWAY_VERSION))
+PROTOC_GEN_OPENAPIV2 = $(call tool_path,protoc-gen-openapiv2,$(GRPC_GATEWAY_VERSION))
+
+PROTOC := GOPATH="$(TOOLCHAIN_DIR)" "$(PROTOC_BIN)"
 PROTOC_INCLUDE_FLAGS = -I "$(REPOSITORY_ROOT)" -I "$(THIRDPARTY_DIR)/grpc_gateway/include/" -I "$(THIRDPARTY_DIR)/google_protobuf/include/"
 
 # protoc otherwise resolves each protoc-gen-* plugin by searching PATH, which
 # depends on the toolchain bin directory being on PATH in whatever form the
 # current OS/shell expects (this breaks on the Windows CI runner). Pointing
 # protoc at each plugin's exact path sidesteps PATH entirely.
-PROTOC_GO_PLUGIN = --plugin=protoc-gen-go="$(TOOLCHAIN_BIN)/protoc-gen-go$(EXE)"
-PROTOC_GO_GRPC_PLUGIN = --plugin=protoc-gen-go-grpc="$(TOOLCHAIN_BIN)/protoc-gen-go-grpc$(EXE)"
-PROTOC_GRPC_GATEWAY_PLUGIN = --plugin=protoc-gen-grpc-gateway="$(TOOLCHAIN_BIN)/protoc-gen-grpc-gateway$(EXE)"
-PROTOC_OPENAPIV2_PLUGIN = --plugin=protoc-gen-openapiv2="$(TOOLCHAIN_BIN)/protoc-gen-openapiv2$(EXE)"
+PROTOC_GO_PLUGIN = --plugin=protoc-gen-go="$(PROTOC_GEN_GO)"
+PROTOC_GO_GRPC_PLUGIN = --plugin=protoc-gen-go-grpc="$(PROTOC_GEN_GO_GRPC)"
+PROTOC_GRPC_GATEWAY_PLUGIN = --plugin=protoc-gen-grpc-gateway="$(PROTOC_GEN_GRPC_GATEWAY)"
+PROTOC_OPENAPIV2_PLUGIN = --plugin=protoc-gen-openapiv2="$(PROTOC_GEN_OPENAPIV2)"
 
-PROTOC_TOOLCHAIN = build/toolchain/bin/protoc$(EXE)
-PROTOC_TOOLCHAIN += build/toolchain/bin/protoc-gen-go-grpc$(EXE)
-PROTOC_TOOLCHAIN += build/toolchain/bin/protoc-gen-go$(EXE)
-PROTOC_TOOLCHAIN += build/toolchain/bin/protoc-gen-grpc-gateway$(EXE)
-PROTOC_TOOLCHAIN += build/toolchain/bin/protoc-gen-openapiv2$(EXE)
+PROTOC_TOOLCHAIN = $(PROTOC_BIN) $(PROTOC_GEN_GO_GRPC) $(PROTOC_GEN_GO) $(PROTOC_GEN_GRPC_GATEWAY) $(PROTOC_GEN_OPENAPIV2)
+# The vendored include trees protoc compiles against. Depended on by the
+# compile rules below rather than by the plugins, which do not read them: they
+# are rebuilt whenever their master-branch archives are missing from build/,
+# and that must not make the cached plugins look out of date.
+PROTOC_INCLUDES = third_party/google_protobuf/include/google/LICENSE third_party/grpc_gateway/include/protoc-gen-openapiv2/LICENSE
 
-build/archives/protoc.zip:
-	mkdir -p $(ARCHIVES_DIR)/
-	$(CURL) -o $(ARCHIVES_DIR)/protoc.zip -L $(PROTOC_PACKAGE)
-	touch "$(REPOSITORY_ROOT)/$@"
-
-build/toolchain/bin/protoc$(EXE): build/archives/protoc.zip
+$(PROTOC_ARCHIVE):
 	mkdir -p "$(dir $@)"
-	mkdir -p "$(TOOLCHAIN_DIR)/protoc-temp/"
-	cp "$(ARCHIVES_DIR)/protoc.zip" "$(TOOLCHAIN_DIR)/protoc-temp/"
-	(cd "$(TOOLCHAIN_DIR)/protoc-temp/"; unzip -q -o protoc.zip)
-	cp "$(TOOLCHAIN_DIR)/protoc-temp/bin/protoc$(EXE)" "$(TOOLCHAIN_BIN)/protoc$(EXE)"
-	rm -rf "$(TOOLCHAIN_DIR)/protoc-temp/"
-	touch "$(REPOSITORY_ROOT)/$@"
+	$(call DOWNLOAD,$(PROTOC_PACKAGE))
 
-build/toolchain/bin/protoc-gen-go-grpc$(EXE): third_party/google_protobuf/include/google/LICENSE third_party/grpc_gateway/include/protoc-gen-openapiv2/LICENSE
-	mkdir -p "$(dir $@)"
-	cd "$(TOOLCHAIN_BIN)" && $(TOOLCHAIN_GO_INSTALL) google.golang.org/grpc/cmd/protoc-gen-go-grpc@v$(GOLANG_GRPC_VERSION)
-	touch "$(REPOSITORY_ROOT)/$@"
+$(PROTOC_BIN): $(PROTOC_ARCHIVE)
+	$(call INSTALL_FROM_ARCHIVE,$(PROTOC_ARCHIVE))
 
-build/toolchain/bin/protoc-gen-go$(EXE): third_party/google_protobuf/include/google/LICENSE third_party/grpc_gateway/include/protoc-gen-openapiv2/LICENSE
-	mkdir -p "$(dir $@)"
-	cd "$(TOOLCHAIN_BIN)" && $(TOOLCHAIN_GO_INSTALL) google.golang.org/protobuf/cmd/protoc-gen-go@v$(GOLANG_PROTOBUF_VERSION)
-	touch "$(REPOSITORY_ROOT)/$@"
+$(PROTOC_GEN_GO_GRPC):
+	$(call GO_INSTALL_TOOL,google.golang.org/grpc/cmd/protoc-gen-go-grpc@v$(GOLANG_GRPC_VERSION))
 
-build/toolchain/bin/protoc-gen-grpc-gateway$(EXE): third_party/google_protobuf/include/google/LICENSE third_party/grpc_gateway/include/protoc-gen-openapiv2/LICENSE
-	cd "$(TOOLCHAIN_BIN)" && $(TOOLCHAIN_GO_INSTALL) github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-grpc-gateway@v$(GRPC_GATEWAY_VERSION)
-	touch "$(REPOSITORY_ROOT)/$@"
+$(PROTOC_GEN_GO):
+	$(call GO_INSTALL_TOOL,google.golang.org/protobuf/cmd/protoc-gen-go@v$(GOLANG_PROTOBUF_VERSION))
 
-build/toolchain/bin/protoc-gen-openapiv2$(EXE): third_party/google_protobuf/include/google/LICENSE third_party/grpc_gateway/include/protoc-gen-openapiv2/LICENSE
-	mkdir -p "$(dir $@)"
-	cd "$(TOOLCHAIN_BIN)" && $(TOOLCHAIN_GO_INSTALL) github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-openapiv2@v$(GRPC_GATEWAY_VERSION)
-	touch "$(REPOSITORY_ROOT)/$@"
+$(PROTOC_GEN_GRPC_GATEWAY):
+	$(call GO_INSTALL_TOOL,github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-grpc-gateway@v$(GRPC_GATEWAY_VERSION))
+
+$(PROTOC_GEN_OPENAPIV2):
+	$(call GO_INSTALL_TOOL,github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-openapiv2@v$(GRPC_GATEWAY_VERSION))
 
 build/archives/googleapis.zip:
 	mkdir -p "$(dir $@)"
@@ -104,13 +101,12 @@ build/archives/grpc-gateway.zip:
 third_party/google_protobuf/include/google/: third_party/google_protobuf/include/google/LICENSE
 	touch "$(REPOSITORY_ROOT)/$@"
 
-third_party/google_protobuf/include/google/LICENSE: build/archives/protoc.zip build/archives/googleapis.zip
+third_party/google_protobuf/include/google/LICENSE: $(PROTOC_ARCHIVE) build/archives/googleapis.zip
 	rm -rf "$(THIRDPARTY_DIR)/google_protobuf/include/"
 	mkdir -p "$(TOOLCHAIN_DIR)/googleapis-temp/"
-	mkdir -p "$(TOOLCHAIN_BIN)/"
 	mkdir -p "$(THIRDPARTY_DIR)/google_protobuf/include/google/"
 	# Copy protobuf
-	cp "$(ARCHIVES_DIR)/protoc.zip" "$(TOOLCHAIN_DIR)/googleapis-temp/"
+	cp "$(PROTOC_ARCHIVE)" "$(TOOLCHAIN_DIR)/googleapis-temp/protoc.zip"
 	cp "$(ARCHIVES_DIR)/googleapis.zip" "$(TOOLCHAIN_DIR)/googleapis-temp/"
 	(cd "$(TOOLCHAIN_DIR)/googleapis-temp/"; unzip -q -o protoc.zip)
 	cp -rf "$(TOOLCHAIN_DIR)/googleapis-temp/include/google/"* \
@@ -139,7 +135,6 @@ third_party/grpc_gateway/include/protoc-gen-openapiv2/: third_party/grpc_gateway
 third_party/grpc_gateway/include/protoc-gen-openapiv2/LICENSE: build/archives/grpc-gateway.zip
 	rm -rf "$(THIRDPARTY_DIR)/grpc_gateway/"
 	mkdir -p "$(TOOLCHAIN_DIR)/grpc-gateway-temp/"
-	mkdir -p "$(TOOLCHAIN_BIN)/"
 	mkdir -p "$(THIRDPARTY_DIR)/grpc_gateway/include/protoc-gen-openapiv2/options/"
 
 	cp "$(ARCHIVES_DIR)/grpc-gateway.zip" "$(TOOLCHAIN_DIR)/grpc-gateway-temp/"
@@ -152,17 +147,17 @@ third_party/grpc_gateway/include/protoc-gen-openapiv2/LICENSE: build/archives/gr
 	rm -rf "$(TOOLCHAIN_DIR)/grpc-gateway-temp"
 	touch "$(REPOSITORY_ROOT)/$@"
 
-%_grpc.pb.go: %.proto %.pb.go $(PROTOC_TOOLCHAIN)
+%_grpc.pb.go: %.proto %.pb.go $(PROTOC_TOOLCHAIN) $(PROTOC_INCLUDES)
 	$(PROTOC) $(PROTOC_INCLUDE_FLAGS) $(PROTOC_GO_GRPC_PLUGIN) --go-grpc_out=. --go-grpc_opt=paths=source_relative $<
 	$(TOOLCHAIN_GO) fmt $@
 	touch "$(REPOSITORY_ROOT)/$@"
 
-%.pb.go: %.proto $(PROTOC_TOOLCHAIN)
+%.pb.go: %.proto $(PROTOC_TOOLCHAIN) $(PROTOC_INCLUDES)
 	$(PROTOC) $(PROTOC_INCLUDE_FLAGS) $(PROTOC_GO_PLUGIN) --go_out=. --go_opt=paths=source_relative $<
 	$(TOOLCHAIN_GO) fmt $@
 	touch "$(REPOSITORY_ROOT)/$@"
 
-%.pb.gw.go: %.proto %_grpc.pb.go $(PROTOC_TOOLCHAIN)
+%.pb.gw.go: %.proto %_grpc.pb.go $(PROTOC_TOOLCHAIN) $(PROTOC_INCLUDES)
 	echo $(dir $<)
 	$(PROTOC) $(PROTOC_INCLUDE_FLAGS) $(PROTOC_GRPC_GATEWAY_PLUGIN) --grpc-gateway_out . --grpc-gateway_opt paths=source_relative --grpc-gateway_opt logtostderr=true --grpc-gateway_opt allow_delete_body=true $<
 	$(SED_REPLACE) 's/proto_0/proto/g' $@
@@ -170,6 +165,6 @@ third_party/grpc_gateway/include/protoc-gen-openapiv2/LICENSE: build/archives/gr
 	$(TOOLCHAIN_GO) fmt $@
 	touch "$(REPOSITORY_ROOT)/$@"
 
-%.swagger.json: %.proto %.pb.gw.go $(PROTOC_TOOLCHAIN)
+%.swagger.json: %.proto %.pb.gw.go $(PROTOC_TOOLCHAIN) $(PROTOC_INCLUDES)
 	$(PROTOC) $(PROTOC_INCLUDE_FLAGS) $(PROTOC_OPENAPIV2_PLUGIN) --openapiv2_out . --openapiv2_opt logtostderr=true $<
 	touch "$(REPOSITORY_ROOT)/$@"
