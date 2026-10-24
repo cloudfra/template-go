@@ -17,11 +17,11 @@ include Makefile_core.mk
 # https://github.com/rhysd/actionlint/releases
 ACTIONLINT_VERSION = 1.7.12
 # https://github.com/docker/compose/releases
-DOCKERCOMPOSE_VERSION = 5.6.0
+DOCKERCOMPOSE_VERSION = 5.6.1
 # https://developer.hashicorp.com/terraform/install
-TERRAFORM_VERSION = 1.16.6
+TERRAFORM_VERSION = 1.17.0
 # https://github.com/cloudfra/certtool/releases
-CERTTOOL_VERSION = 0.7.0
+CERTTOOL_VERSION = 0.8.0
 # https://github.com/hadolint/hadolint/releases
 HADOLINT_VERSION = 2.15.1
 # https://github.com/t-yuki/gocover-cobertura/releases
@@ -41,9 +41,9 @@ SHELLCHECK_VERSION = 0.11.0
 # https://github.com/terraform-linters/tflint/releases
 TFLINT_VERSION = 0.65.0
 # https://github.com/aquasecurity/trivy/releases
-TRIVY_VERSION = 0.76.0
+TRIVY_VERSION = 0.76.1
 # https://github.com/goptics/vizb/releases
-VIZB_VERSION = 0.22.0
+VIZB_VERSION = 0.23.0
 # https://developer.android.com/ndk/downloads
 ANDROID_NDK_VERSION = r30
 # Minimum Android API level for the NDK's clang target wrappers; 21 is the
