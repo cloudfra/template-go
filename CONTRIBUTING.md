@@ -32,6 +32,21 @@ make run    # build and run the exampleapp binary
 See the "Common make targets" table in the [README](README.md#common-make-targets)
 for the rest (benchmarks, Terraform tests, Docker images, etc.).
 
+## GitHub Actions workflows
+
+Workflow YAML in this repo stays declarative: no inline scripts, and no
+inline multi-line payloads. A step's `run:` invokes a committed file under
+`scripts/` instead of embedding shell, and long text (PR bodies, job
+descriptions) lives in a file referenced by path — for example
+`.github/workflows/dependency-update.yaml` passes
+`body-path: .github/dependency-update-pr-body.md` to
+`peter-evans/create-pull-request` rather than inlining the body.
+
+The reason is reviewability and debuggability: `actionlint` and
+`shellcheck` only see what is inside `run:`, and a script under `scripts/`
+can be run and fixed locally, while a heredoc buried in a workflow can
+only be tested by pushing a commit.
+
 ## Adding a new `cmd/` binary
 
 Per the README's [Project layout](README.md#project-layout), create a new
