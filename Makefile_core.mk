@@ -20,20 +20,50 @@ REPOSITORY_ROOT := $(patsubst %/,%,$(dir $(abspath $(lastword $(MAKEFILE_LIST)))
 BUILD_DIR = $(REPOSITORY_ROOT)/build
 ARCHIVES_DIR = $(BUILD_DIR)/archives
 TOOLCHAIN_DIR = $(BUILD_DIR)/toolchain
-TOOLCHAIN_BIN = $(TOOLCHAIN_DIR)/bin
 THIRDPARTY_DIR = $(REPOSITORY_ROOT)/third_party
 
 TOOLCHAIN_GO = go
-# Install to GOBIN (build/toolchain/bin, on PATH) instead of pinning GOPATH to
-# the repo: Go stores the read-only module cache under $GOPATH/pkg/mod, so
-# parking it in the repo means `actions/checkout`'s `git clean -ffdx` and `make
-# clean` (rm -rf build/) have to delete thousands of read-only files — what
-# makes the Windows self-hosted runner's checkout step take over a minute.
-# Using the default GOPATH keeps the cache out of the repo (persistent across
-# runs, never touched by clean); the proto plugins now match every other
-# toolchain rule, which already uses GOBIN.
-TOOLCHAIN_GO_INSTALL = GOBIN=$(TOOLCHAIN_BIN) $(TOOLCHAIN_GO) install
 CURL = curl --retry 5 --retry-connrefused
+
+# Pinned toolchain releases are installed here, each into its own
+# <tool>-<version>/ directory, and run from there. A version bump installs only
+# that tool, and an installed tool is never rebuilt or re-extracted, so a build
+# with a populated cache does no toolchain work at all. It defaults to
+# build/toolchain, which `make clean` removes as before; CI points it at a
+# directory outside the workspace (see .github/workflows/deploy.yaml) that
+# survives `actions/checkout`'s `git clean -ffdx` and `make clean`, so each
+# release is installed once per runner. `make clean-cache` empties it.
+TOOLCHAIN_CACHE ?= $(TOOLCHAIN_DIR)
+override TOOLCHAIN_CACHE := $(abspath $(TOOLCHAIN_CACHE))
+# tool_path TOOL,VERSION names the installed binary of a pinned release.
+tool_path = $(TOOLCHAIN_CACHE)/$(1)-$(2)/$(1)$(EXE)
+
+# Jobs on one runner share TOOLCHAIN_CACHE, so every recipe below works in a
+# per-process scratch name next to $@ and renames the finished file into place:
+# a concurrent job never sees a partial file, and curl -f keeps an HTTP error
+# page from being installed. If the rename fails because another job already
+# installed $@ (Windows will not replace a running .exe), its copy is used.
+#
+# Download the prebuilt binary at URL to $@.
+DOWNLOAD_TOOL = mkdir -p "$(dir $@)" && $(CURL) -fL -o "$@.$$$$.tmp" "$(1)" && \
+	chmod +x "$@.$$$$.tmp" && { mv -f "$@.$$$$.tmp" "$@" || [ -f "$@" ]; }; \
+	status=$$?; rm -f "$@.$$$$.tmp"; exit $$status
+# Unpack the release archive at URL and install the file in it named like $@
+# (wherever the archive keeps it) as $@.
+INSTALL_FROM_ARCHIVE = tmp="$@.$$$$.d" && rm -rf "$$tmp" && mkdir -p "$$tmp" && \
+	archive="$$tmp/$(notdir $(1))" && $(CURL) -fL -o "$$archive" "$(1)" && \
+	(cd "$$tmp" && case "$$archive" in *.zip) unzip -q "$$archive" ;; *) tar -xf "$$archive" ;; esac) && \
+	bin="$$($(FIND) "$$tmp" -type f -name "$(notdir $@)" | head -n 1)" && [ -n "$$bin" ] && \
+	chmod +x "$$bin" && { mv -f "$$bin" "$@" || [ -f "$@" ]; }; \
+	status=$$?; rm -rf "$$tmp"; exit $$status
+# go install PACKAGE@VERSION as $@. Go's module and build caches stay in the
+# default GOPATH/GOCACHE, outside the repo: a read-only module cache under
+# build/ is what made the Windows runner's `git clean -ffdx` take over a
+# minute.
+GO_INSTALL_TOOL = tmp="$@.$$$$.d" && rm -rf "$$tmp" && mkdir -p "$$tmp" && \
+	GOBIN="$$tmp" $(TOOLCHAIN_GO) install $(1) && \
+	{ mv -f "$$tmp/$(notdir $@)" "$@" || [ -f "$@" ]; }; \
+	status=$$?; rm -rf "$$tmp"; exit $$status
 
 SHORT_SHA = $(or $(SHORT_SHA_),$(eval SHORT_SHA_ := $(if $(GITHUB_SHA),$(shell printf '%.7s' "$(GITHUB_SHA)"),$(shell git rev-parse --short=7 HEAD 2>/dev/null)))$(SHORT_SHA_))
 DIRTY_VERSION = v0.0.0-$(or $(SHORT_SHA),unknown)
@@ -41,7 +71,6 @@ VERSION = $(or $(VERSION_),$(eval VERSION_ := $(if $(filter tag,$(GITHUB_REF_TYP
 BUILD_DATE = $(shell date -u +'%Y-%m-%dT%H:%M:%SZ')
 TAG = $(VERSION)
 
-export PATH := $(PWD)/build/toolchain/bin:$(PATH)
 SOURCE_DIRS=$(shell go list ./... | grep -v '/vendor/')
 
 ifeq ($(OS),Windows_NT)
