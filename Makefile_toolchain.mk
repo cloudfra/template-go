@@ -15,35 +15,40 @@
 include Makefile_core.mk
 
 # https://github.com/rhysd/actionlint/releases
-ACTIONLINT_VERSION=latest
+ACTIONLINT_VERSION = 1.7.12
 # https://github.com/docker/compose/releases
-DOCKERCOMPOSE_VERSION = 5.5.1
+DOCKERCOMPOSE_VERSION = 5.6.0
 # https://developer.hashicorp.com/terraform/install
-TERRAFORM_VERSION = 1.16.3
+TERRAFORM_VERSION = 1.16.6
 # https://github.com/cloudfra/certtool/releases
-CERTTOOL_VERSION = 0.6.0
+CERTTOOL_VERSION = 0.7.0
 # https://github.com/hadolint/hadolint/releases
 HADOLINT_VERSION = 2.15.1
 # https://github.com/t-yuki/gocover-cobertura/releases
-GOCOVER_COBERTURA_VERSION = latest
+GOCOVER_COBERTURA_VERSION = 0.0.0-20180217150009-aaee18c8195c
 # https://github.com/mvdan/gofumpt/releases
-GOFUMPT_VERSION = latest
+GOFUMPT_VERSION = 0.12.0
 # https://github.com/golangci/golangci-lint/releases
-GOLANGCI_LINT_VERSION = latest
+GOLANGCI_LINT_VERSION = 2.15.0
 # https://github.com/golang/vuln/releases
-GOVULNCHECK_VERSION = 1.8.0
+GOVULNCHECK_VERSION = 1.9.0
 # https://github.com/mgechev/revive/releases
-REVIVE_VERSION=latest
+REVIVE_VERSION = 1.17.1
 # https://github.com/rvben/rumdl/releases
-RUMDL_VERSION = 0.2.75
+RUMDL_VERSION = 0.3.0
 # https://github.com/koalaman/shellcheck/releases
 SHELLCHECK_VERSION = 0.11.0
 # https://github.com/terraform-linters/tflint/releases
-TFLINT_VERSION = latest
+TFLINT_VERSION = 0.65.0
 # https://github.com/aquasecurity/trivy/releases
-TRIVY_VERSION = 0.74.0
+TRIVY_VERSION = 0.76.0
 # https://github.com/goptics/vizb/releases
-VIZB_VERSION = 0.21.0
+VIZB_VERSION = 0.22.0
+# https://developer.android.com/ndk/downloads
+ANDROID_NDK_VERSION = r30
+# Minimum Android API level for the NDK's clang target wrappers; 21 is the
+# lowest the NDK supports.
+ANDROID_API = 21
 
 ifeq ($(OS),Windows_NT)
 	DOCKERCOMPOSE_PACKAGE = https://github.com/docker/compose/releases/download/v$(DOCKERCOMPOSE_VERSION)/docker-compose-windows-x86_64.exe
@@ -111,11 +116,23 @@ TFLINT = build/toolchain/bin/tflint$(EXE)
 TRIVY = build/toolchain/bin/trivy$(EXE)
 VIZB = build/toolchain/bin/vizb$(EXE)
 
+# The Android NDK supplies the C toolchain that android/386, android/amd64 and
+# android/arm need for cgo external linking. It is ~700 MB, so it is not part
+# of COMMON_TOOLCHAIN (`make tools`); only those binaries depend on it (see
+# Makefile_build.mk). Only the linux-x86_64 host package is wired up.
+ANDROID_NDK = build/toolchain/android-ndk-$(ANDROID_NDK_VERSION)
+ANDROID_NDK_BIN = $(ANDROID_NDK)/toolchains/llvm/prebuilt/linux-x86_64/bin
+ANDROID_NDK_CLANG = $(ANDROID_NDK_BIN)/clang
+# Kept as a variable (rather than inline in the download rule) so
+# scripts/template-go/update-project.sh can expand the exact URL this build
+# would fetch and HEAD-check a candidate NDK release before rewriting the pin.
+ANDROID_NDK_PACKAGE = https://dl.google.com/android/repository/android-ndk-$(ANDROID_NDK_VERSION)-linux.zip
+
 COMMON_TOOLCHAIN = $(ACTIONLINT) $(CERTTOOL) $(DOCKER_COMPOSE) $(GOCOVER_COBERTURA) $(GOFUMPT) $(GOLANGCI_LINT) $(GOVULNCHECK) $(HADOLINT) $(REVIVE) $(RUMDL) $(SHELLCHECK) $(TERRAFORM) $(TFLINT) $(TRIVY) $(VIZB)
 
 $(ACTIONLINT):
 	mkdir -p "$(dir $@)"
-	GOBIN="$(dir $(REPOSITORY_ROOT)/$@)" $(GO_WITH_PROXY) install github.com/rhysd/actionlint/cmd/actionlint@$(ACTIONLINT_VERSION)
+	GOBIN="$(dir $(REPOSITORY_ROOT)/$@)" $(GO_WITH_PROXY) install github.com/rhysd/actionlint/cmd/actionlint@v$(ACTIONLINT_VERSION)
 
 $(CERTTOOL):
 	mkdir -p "$(dir $@)"
@@ -129,19 +146,19 @@ $(DOCKER_COMPOSE):
 
 $(GOCOVER_COBERTURA):
 	mkdir -p "$(dir $@)"
-	GOBIN="$(dir $(REPOSITORY_ROOT)/$@)" $(GO_WITH_PROXY) install github.com/t-yuki/gocover-cobertura@$(GOCOVER_COBERTURA_VERSION)
+	GOBIN="$(dir $(REPOSITORY_ROOT)/$@)" $(GO_WITH_PROXY) install github.com/t-yuki/gocover-cobertura@v$(GOCOVER_COBERTURA_VERSION)
 
 # Stricter formatting than `go fmt` (gofmt superset).
 $(GOFUMPT):
 	mkdir -p "$(dir $@)"
-	GOBIN="$(dir $(REPOSITORY_ROOT)/$@)" $(GO_WITH_PROXY) install mvdan.cc/gofumpt@$(GOFUMPT_VERSION)
+	GOBIN="$(dir $(REPOSITORY_ROOT)/$@)" $(GO_WITH_PROXY) install mvdan.cc/gofumpt@v$(GOFUMPT_VERSION)
 
 # golangci-lint's own default config (errcheck, govet, ineffassign,
 # staticcheck, unused) already covers what a standalone staticcheck run
 # would, so it's the only Go correctness linter wired into `lint`.
 $(GOLANGCI_LINT):
 	mkdir -p "$(dir $@)"
-	GOBIN="$(dir $(REPOSITORY_ROOT)/$@)" $(GO_WITH_PROXY) install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION)
+	GOBIN="$(dir $(REPOSITORY_ROOT)/$@)" $(GO_WITH_PROXY) install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v$(GOLANGCI_LINT_VERSION)
 
 $(GOVULNCHECK):
 	mkdir -p "$(dir $@)"
@@ -156,7 +173,7 @@ $(HADOLINT):
 # Style/doc-comment linter; not covered by golangci-lint's default config.
 $(REVIVE):
 	mkdir -p "$(dir $@)"
-	GOBIN="$(dir $(REPOSITORY_ROOT)/$@)" $(GO_WITH_PROXY) install github.com/mgechev/revive@$(REVIVE_VERSION)
+	GOBIN="$(dir $(REPOSITORY_ROOT)/$@)" $(GO_WITH_PROXY) install github.com/mgechev/revive@v$(REVIVE_VERSION)
 
 $(RUMDL): $(RUMDL_ARCHIVE)
 	mkdir -p "$(dir $@)"
@@ -197,7 +214,7 @@ $(TERRAFORM): build/archives/terraform.zip
 
 $(TFLINT):
 	mkdir -p "$(dir $@)"
-	GOBIN="$(dir $(REPOSITORY_ROOT)/$@)" $(GO_WITH_PROXY) install github.com/terraform-linters/tflint@$(TFLINT_VERSION)
+	GOBIN="$(dir $(REPOSITORY_ROOT)/$@)" $(GO_WITH_PROXY) install github.com/terraform-linters/tflint@v$(TFLINT_VERSION)
 
 # Also not a Go module; ships as an archive like shellcheck, but unlike
 # shellcheck the binary sits at the archive root with no versioned
@@ -217,6 +234,17 @@ endif
 $(VIZB):
 	# https://github.com/goptics/vizb
 	GOBIN="$(TOOLCHAIN_BIN)" $(GO_WITH_PROXY) install github.com/goptics/vizb@v$(VIZB_VERSION)
+
+$(ANDROID_NDK_CLANG): build/archives/android-ndk.zip
+	rm -rf "$(REPOSITORY_ROOT)/$(ANDROID_NDK)"
+	mkdir -p "$(TOOLCHAIN_DIR)"
+	(cd "$(TOOLCHAIN_DIR)" && unzip -q "$(REPOSITORY_ROOT)/$<")
+	touch "$(REPOSITORY_ROOT)/$@"
+
+build/archives/android-ndk.zip:
+	mkdir -p "$(dir $@)"
+	$(CURL) -o "$(REPOSITORY_ROOT)/$@" -L "$(ANDROID_NDK_PACKAGE)"
+	touch "$(REPOSITORY_ROOT)/$@"
 
 build/archives/terraform.zip:
 	mkdir -p "$(dir $@)"
