@@ -58,9 +58,11 @@ jobs:
         # Install toolchain releases into the runner's persistent tool
         # directory instead of build/, so they survive checkout's
         # `git clean -ffdx` and the Clean step below and are installed once
-        # per runner. See TOOLCHAIN_CACHE in Makefile_core.mk.
+        # per runner. Projects made from template-go share it, and only
+        # install the versions they pin that are not there yet. See
+        # TOOLCHAIN_CACHE in Makefile_core.mk.
         run: |
-          echo "TOOLCHAIN_CACHE=$RUNNER_TOOL_CACHE/template-go" \
+          echo "TOOLCHAIN_CACHE=$RUNNER_TOOL_CACHE/toolchain" \
             >> "$GITHUB_ENV"
       - name: Setup Go
         # https://github.com/actions/setup-go
@@ -209,7 +211,7 @@ jobs:
         # rule separator, so the path is converted to MSYS form (/c/...).
         shell: bash
         run: |
-          cache="$(cygpath -u "$RUNNER_TOOL_CACHE")/template-go"
+          cache="$(cygpath -u "$RUNNER_TOOL_CACHE")/toolchain"
           echo "TOOLCHAIN_CACHE=$cache" >> "$GITHUB_ENV"
       - name: Setup Go
         uses: actions/setup-go@v7

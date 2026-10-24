@@ -91,29 +91,39 @@ else
 	endif
 endif
 
-# Each tool is installed once into TOOLCHAIN_CACHE (see Makefile_core.mk) under
-# its pinned version and run from there.
-ACTIONLINT = $(call tool_path,actionlint,$(ACTIONLINT_VERSION))
-CERTTOOL = $(call tool_path,certtool,$(CERTTOOL_VERSION))
-DOCKER_COMPOSE = $(call tool_path,docker-compose,$(DOCKERCOMPOSE_VERSION))
-GOCOVER_COBERTURA = $(call tool_path,gocover-cobertura,$(GOCOVER_COBERTURA_VERSION))
-GOFUMPT = $(call tool_path,gofumpt,$(GOFUMPT_VERSION))
-GOLANGCI_LINT = $(call tool_path,golangci-lint,$(GOLANGCI_LINT_VERSION))
-GOVULNCHECK = $(call tool_path,govulncheck,$(GOVULNCHECK_VERSION))
-HADOLINT = $(call tool_path,hadolint,$(HADOLINT_VERSION))
-REVIVE = $(call tool_path,revive,$(REVIVE_VERSION))
-RUMDL = $(call tool_path,rumdl,$(RUMDL_VERSION))
-SHELLCHECK = $(call tool_path,shellcheck,$(SHELLCHECK_VERSION))
-TERRAFORM = $(call tool_path,terraform,$(TERRAFORM_VERSION))
-TFLINT = $(call tool_path,tflint,$(TFLINT_VERSION))
-TRIVY = $(call tool_path,trivy,$(TRIVY_VERSION))
-VIZB = $(call tool_path,vizb,$(VIZB_VERSION))
+# Each tool is installed once into TOOLCHAIN_CACHE (see Makefile_core.mk), in a
+# directory keyed by its version and source, and run from there. A Go tool's
+# source is its X_GO_PACKAGE (not X_PACKAGE, which update-project.sh takes to be
+# a download URL to check).
+ACTIONLINT_GO_PACKAGE = github.com/rhysd/actionlint/cmd/actionlint
+ACTIONLINT = $(call go_tool_path,actionlint,$(ACTIONLINT_VERSION),$(ACTIONLINT_GO_PACKAGE))
+CERTTOOL = $(call tool_path,certtool,$(CERTTOOL_VERSION),$(CERTTOOL_PACKAGE))
+DOCKER_COMPOSE = $(call tool_path,docker-compose,$(DOCKERCOMPOSE_VERSION),$(DOCKERCOMPOSE_PACKAGE))
+GOCOVER_COBERTURA_GO_PACKAGE = github.com/t-yuki/gocover-cobertura
+GOCOVER_COBERTURA = $(call go_tool_path,gocover-cobertura,$(GOCOVER_COBERTURA_VERSION),$(GOCOVER_COBERTURA_GO_PACKAGE))
+GOFUMPT_GO_PACKAGE = mvdan.cc/gofumpt
+GOFUMPT = $(call go_tool_path,gofumpt,$(GOFUMPT_VERSION),$(GOFUMPT_GO_PACKAGE))
+GOLANGCI_LINT_GO_PACKAGE = github.com/golangci/golangci-lint/v2/cmd/golangci-lint
+GOLANGCI_LINT = $(call go_tool_path,golangci-lint,$(GOLANGCI_LINT_VERSION),$(GOLANGCI_LINT_GO_PACKAGE))
+GOVULNCHECK_GO_PACKAGE = golang.org/x/vuln/cmd/govulncheck
+GOVULNCHECK = $(call go_tool_path,govulncheck,$(GOVULNCHECK_VERSION),$(GOVULNCHECK_GO_PACKAGE))
+HADOLINT = $(call tool_path,hadolint,$(HADOLINT_VERSION),$(HADOLINT_PACKAGE))
+REVIVE_GO_PACKAGE = github.com/mgechev/revive
+REVIVE = $(call go_tool_path,revive,$(REVIVE_VERSION),$(REVIVE_GO_PACKAGE))
+RUMDL = $(call tool_path,rumdl,$(RUMDL_VERSION),$(RUMDL_PACKAGE))
+SHELLCHECK = $(call tool_path,shellcheck,$(SHELLCHECK_VERSION),$(SHELLCHECK_PACKAGE))
+TERRAFORM = $(call tool_path,terraform,$(TERRAFORM_VERSION),$(TERRAFORM_PACKAGE))
+TFLINT_GO_PACKAGE = github.com/terraform-linters/tflint
+TFLINT = $(call go_tool_path,tflint,$(TFLINT_VERSION),$(TFLINT_GO_PACKAGE))
+TRIVY = $(call tool_path,trivy,$(TRIVY_VERSION),$(TRIVY_PACKAGE))
+VIZB_GO_PACKAGE = github.com/goptics/vizb
+VIZB = $(call go_tool_path,vizb,$(VIZB_VERSION),$(VIZB_GO_PACKAGE))
 
 # The Android NDK supplies the C toolchain that android/386, android/amd64 and
 # android/arm need for cgo external linking. It is ~700 MB, so it is not part
 # of COMMON_TOOLCHAIN (`make tools`); only those binaries depend on it (see
 # Makefile_build.mk). Only the linux-x86_64 host package is wired up.
-ANDROID_NDK = $(TOOLCHAIN_CACHE)/android-ndk-$(ANDROID_NDK_VERSION)
+ANDROID_NDK = $(call tool_dir,android-ndk,$(ANDROID_NDK_VERSION),$(ANDROID_NDK_PACKAGE))/android-ndk
 ANDROID_NDK_BIN = $(ANDROID_NDK)/toolchains/llvm/prebuilt/linux-x86_64/bin
 ANDROID_NDK_CLANG = $(ANDROID_NDK_BIN)/clang
 # Kept as a variable (rather than inline in the download rule) so
@@ -124,7 +134,7 @@ ANDROID_NDK_PACKAGE = https://dl.google.com/android/repository/android-ndk-$(AND
 COMMON_TOOLCHAIN = $(ACTIONLINT) $(CERTTOOL) $(DOCKER_COMPOSE) $(GOCOVER_COBERTURA) $(GOFUMPT) $(GOLANGCI_LINT) $(GOVULNCHECK) $(HADOLINT) $(REVIVE) $(RUMDL) $(SHELLCHECK) $(TERRAFORM) $(TFLINT) $(TRIVY) $(VIZB)
 
 $(ACTIONLINT):
-	$(call GO_INSTALL_TOOL,github.com/rhysd/actionlint/cmd/actionlint@v$(ACTIONLINT_VERSION))
+	$(call GO_INSTALL_TOOL,$(ACTIONLINT_GO_PACKAGE)@$(call go_ref,$(ACTIONLINT_VERSION)))
 
 $(CERTTOOL):
 	$(call DOWNLOAD_TOOL,$(CERTTOOL_PACKAGE))
@@ -133,20 +143,20 @@ $(DOCKER_COMPOSE):
 	$(call DOWNLOAD_TOOL,$(DOCKERCOMPOSE_PACKAGE))
 
 $(GOCOVER_COBERTURA):
-	$(call GO_INSTALL_TOOL,github.com/t-yuki/gocover-cobertura@v$(GOCOVER_COBERTURA_VERSION))
+	$(call GO_INSTALL_TOOL,$(GOCOVER_COBERTURA_GO_PACKAGE)@$(call go_ref,$(GOCOVER_COBERTURA_VERSION)))
 
 # Stricter formatting than `go fmt` (gofmt superset).
 $(GOFUMPT):
-	$(call GO_INSTALL_TOOL,mvdan.cc/gofumpt@v$(GOFUMPT_VERSION))
+	$(call GO_INSTALL_TOOL,$(GOFUMPT_GO_PACKAGE)@$(call go_ref,$(GOFUMPT_VERSION)))
 
 # golangci-lint's own default config (errcheck, govet, ineffassign,
 # staticcheck, unused) already covers what a standalone staticcheck run
 # would, so it's the only Go correctness linter wired into `lint`.
 $(GOLANGCI_LINT):
-	$(call GO_INSTALL_TOOL,github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v$(GOLANGCI_LINT_VERSION))
+	$(call GO_INSTALL_TOOL,$(GOLANGCI_LINT_GO_PACKAGE)@$(call go_ref,$(GOLANGCI_LINT_VERSION)))
 
 $(GOVULNCHECK):
-	$(call GO_INSTALL_TOOL,golang.org/x/vuln/cmd/govulncheck@v$(GOVULNCHECK_VERSION))
+	$(call GO_INSTALL_TOOL,$(GOVULNCHECK_GO_PACKAGE)@$(call go_ref,$(GOVULNCHECK_VERSION)))
 
 # Not a Go module, so it's fetched as a prebuilt binary like docker-compose above.
 $(HADOLINT):
@@ -154,7 +164,7 @@ $(HADOLINT):
 
 # Style/doc-comment linter; not covered by golangci-lint's default config.
 $(REVIVE):
-	$(call GO_INSTALL_TOOL,github.com/mgechev/revive@v$(REVIVE_VERSION))
+	$(call GO_INSTALL_TOOL,$(REVIVE_GO_PACKAGE)@$(call go_ref,$(REVIVE_VERSION)))
 
 $(RUMDL):
 	$(call INSTALL_FROM_ARCHIVE,$(RUMDL_PACKAGE))
@@ -170,7 +180,7 @@ $(TERRAFORM):
 	$(call INSTALL_FROM_ARCHIVE,$(TERRAFORM_PACKAGE))
 
 $(TFLINT):
-	$(call GO_INSTALL_TOOL,github.com/terraform-linters/tflint@v$(TFLINT_VERSION))
+	$(call GO_INSTALL_TOOL,$(TFLINT_GO_PACKAGE)@$(call go_ref,$(TFLINT_VERSION)))
 
 # Also not a Go module; ships as an archive like shellcheck.
 $(TRIVY):
@@ -178,7 +188,7 @@ $(TRIVY):
 
 # https://github.com/goptics/vizb
 $(VIZB):
-	$(call GO_INSTALL_TOOL,github.com/goptics/vizb@v$(VIZB_VERSION))
+	$(call GO_INSTALL_TOOL,$(VIZB_GO_PACKAGE)@$(call go_ref,$(VIZB_VERSION)))
 
 # The NDK is a whole directory tree rather than one binary, so it is unpacked
 # next to its final location and renamed into place as a directory.
