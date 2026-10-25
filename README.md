@@ -28,7 +28,9 @@ boilerplate and start with working infrastructure on day one.
 - **Terraform deployment** — infrastructure-as-code under `install/terraform`
   for provisioning test and production environments.
 - **CI included** — GitHub Actions workflow (`.github/workflows/deploy.yaml`)
-  that builds, lints, and tests on every push and pull request.
+  that builds, lints, and tests on every push and pull request, and a release
+  workflow (`.github/workflows/create-release.yaml`) that publishes the
+  binaries and container images when a `v*` tag is pushed.
 - **Enforced linting** — `make lint` runs gofmt, gofumpt, golangci-lint,
   revive, hadolint, actionlint, govulncheck, tflint/terraform fmt, and
   trivy config (Terraform misconfiguration scanning), downloading its own
@@ -100,7 +102,7 @@ gh act pull_request -W .github/workflows/reviewdog.yaml --secret GITHUB_TOKEN=$(
 
 **Known limitations, both confirmed by hand:**
 
-- `deploy.yaml` (the main build/lint/test/release pipeline) currently fails
+- `deploy.yaml` (the main build/lint/test pipeline) currently fails
   to parse under `act`: its schema validator doesn't yet recognize the
   `code-quality` permission scope (the same very-new GitHub Actions feature
   `make lint-yaml` already has to `-ignore` for `actionlint`), and that one
