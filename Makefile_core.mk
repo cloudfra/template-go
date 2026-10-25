@@ -35,11 +35,17 @@ TOOLCHAIN_GO = go
 TOOLCHAIN_GO_INSTALL = GOBIN=$(TOOLCHAIN_BIN) $(TOOLCHAIN_GO) install
 CURL = curl --retry 5 --retry-connrefused
 
-SHORT_SHA = $(shell git rev-parse --short=7 HEAD | tr -d [:punct:])
-DIRTY_VERSION = v0.0.0-$(SHORT_SHA)
-VERSION = $(shell git describe --tags || (echo $(DIRTY_VERSION) && exit 1))
+# The build's version, stamped into binaries and image tags: the nearest tag,
+# else v0.0.0-<commit>, else v0.0.0-unknown outside a git checkout. CI checks
+# out a single commit without tags, so the fallback is normal there and git's
+# "No tags can describe" is dropped rather than printed by every make run.
+# Each git command runs at most once per make run, and only when a target
+# uses its result, so `make clean` and the like run none.
+SHORT_SHA = $(or $(SHORT_SHA_),$(eval SHORT_SHA_ := $(shell git rev-parse --short=7 HEAD 2>/dev/null))$(SHORT_SHA_))
+DIRTY_VERSION = v0.0.0-$(or $(SHORT_SHA),unknown)
+VERSION = $(or $(VERSION_),$(eval VERSION_ := $(shell git describe --tags 2>/dev/null || echo $(DIRTY_VERSION)))$(VERSION_))
 BUILD_DATE = $(shell date -u +'%Y-%m-%dT%H:%M:%SZ')
-TAG := $(VERSION)
+TAG = $(VERSION)
 
 export PATH := $(PWD)/build/toolchain/bin:$(PATH)
 SOURCE_DIRS=$(shell go list ./... | grep -v '/vendor/')
