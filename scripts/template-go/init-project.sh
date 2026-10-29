@@ -26,9 +26,9 @@
 #   4. rewrite the remaining template references (README title, intro and
 #      badges, Dockerfile labels and entrypoints, CONTRIBUTING, SECURITY) to
 #      the new project name, description and URLs
-#   5. tidy up: `go mod tidy`, then `make format` to rewrite whatever the
-#      renames left unformatted (e.g. a README table whose column got wider),
-#      then `make lint` to check the result
+#   5. tidy up: `go mod tidy`, then `make lint`, which also rewrites whatever
+#      the renames left unformatted (e.g. a README table whose column got
+#      wider)
 #
 # APP is the binary name. It is also the cmd/ directory, the docker image name
 # and the ALL_APPS entry, so it must be lowercase ([a-z0-9_-]). PKG is the Go
@@ -102,7 +102,7 @@ Options:
   -y, --no-confirm         Don't pause to confirm the settings before changing
                            files
   -f, --force              Run even if the working tree has uncommitted changes
-      --no-tidy            Skip the final go mod tidy, make format and make lint
+      --no-tidy            Skip the final go mod tidy and make lint
   -n, --dry-run            Report what would change without touching anything
   -t, --target DIR         Project root to initialize (default: the project this
                            script sits in, i.e. two levels above
@@ -475,7 +475,6 @@ if ! $DRY_RUN && $DO_TIDY; then
   if [[ -f go.mod ]]; then
     go mod tidy
   fi
-  make format
   if ! make lint; then
     LINT_OK=false
   fi
@@ -488,7 +487,7 @@ Next steps:
   * review the changes with 'git status' and 'git diff'
 EOF
   if ! $DO_TIDY; then
-    echo "  * run 'make format' and 'make lint'"
+    echo "  * run 'make lint'"
   elif ! $LINT_OK; then
     echo "  * fix the issues 'make lint' reported above"
   fi

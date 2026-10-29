@@ -23,7 +23,6 @@ While iterating, it's usually faster to run just the piece you're
 changing:
 
 ```bash
-make format # rewrite Go, Terraform and Markdown formatting in place
 make lint   # gofmt/go vet, gofumpt, golangci-lint, revive, hadolint,
             # actionlint, govulncheck, tflint/terraform fmt
 make test   # unit test suite
