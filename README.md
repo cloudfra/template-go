@@ -47,6 +47,25 @@ make -j$(nproc)
 make run
 ```
 
+### Starting a new project
+
+In a repo created from this template, `scripts/template-go/init-project.sh`
+replaces the template's placeholders: it sets the Go module path from the
+`origin` remote, renames `cmd/exampleapp` (and `internal/exampleapp`,
+`proto/exampleapp.proto`) to your binary name, and updates the Makefile,
+Dockerfiles and docs to match. It finishes by running `make lint`, which
+also fixes the formatting. It prompts for anything it can't infer, such as
+the project description, and shows the settings for a final check before
+changing anything:
+
+```bash
+scripts/template-go/init-project.sh
+# or non-interactively
+scripts/template-go/init-project.sh --no-confirm --app mytool --description "Does things."
+```
+
+Pass `--dry-run` to list the files it would change without touching anything.
+
 ## Project layout
 
 ```bash
@@ -65,7 +84,7 @@ package; the build system picks it up automatically.
 | Target                             | Description                                                                                                    |
 | ---------------------------------- | -------------------------------------------------------------------------------------------------------------- |
 | `make` / `make all`                | Build binaries for every supported platform                                                                    |
-| `make run`                         | Build and run the exampleapp binary                                                                               |
+| `make run`                         | Build and run the exampleapp binary                                                                            |
 | `make test`                        | Run the unit test suite                                                                                        |
 | `make bench`                       | Run benchmarks                                                                                                 |
 | `make test-deflake`                | Re-run tests to catch flakes                                                                                   |
