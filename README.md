@@ -54,12 +54,13 @@ replaces the template's placeholders: it sets the Go module path from the
 `origin` remote, renames `cmd/exampleapp` (and `internal/exampleapp`,
 `proto/exampleapp.proto`) to your binary name, and updates the Makefile,
 Dockerfiles and docs to match. It prompts for anything it can't infer, such
-as the project description:
+as the project description, and shows the settings for a final check before
+changing anything:
 
 ```bash
 scripts/template-go/init-project.sh
 # or non-interactively
-scripts/template-go/init-project.sh --yes --app mytool --description "Does things."
+scripts/template-go/init-project.sh --no-confirm --app mytool --description "Does things."
 ```
 
 Pass `--dry-run` to list the files it would change without touching anything.

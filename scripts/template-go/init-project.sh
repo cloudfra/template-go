@@ -37,9 +37,13 @@
 # sync-template.sh, so editing them here would be undone by the next sync.
 # third_party/ is vendored upstream code and is never touched either.
 #
-# Anything not passed as a flag is asked for interactively (with the inferred
-# value as the default). Pass --yes to accept the defaults without prompting,
-# e.g. in CI.
+# Each value comes from its flag if one is passed, otherwise it is inferred
+# (the module path from the `origin` remote, the rest from the module path).
+# Only the values that are still missing - always the description, unless
+# --description is passed - are asked for on the terminal, and the script fails
+# if a required value is missing and there is no terminal to ask on. The
+# settings are then shown for a final check before anything changes; pass
+# --no-confirm to skip that pause, e.g. in CI.
 #
 # Nothing is committed and nothing is pushed: the script leaves the changes in
 # the working tree for review.
@@ -73,9 +77,9 @@ Usage: $0 [options]
 
 Initialize a new project created from template-go: set the Go module path,
 rename the exampleapp binary, and replace the remaining template references.
-Values not passed as flags are prompted for, defaulting to what can be
-inferred from the 'origin' git remote. Changes are left uncommitted for
-review.
+Values not passed as flags are inferred from the 'origin' git remote where
+possible and prompted for otherwise; the settings are shown for confirmation
+before anything changes. Changes are left uncommitted for review.
 
 Options:
   -m, --module PATH        Go module path (default: from the origin remote,
@@ -84,14 +88,16 @@ Options:
                            (default: the repository name)
   -p, --package NAME       Go package name for internal/NAME
                            (default: the binary name without '-' and '_')
-  -d, --description TEXT   One-line project description (README, image labels)
+  -d, --description TEXT   One-line project description (README, image labels;
+                           prompted for if not passed)
       --name NAME          Project name for the README title
                            (default: the repository name)
       --registry REGISTRY  Container registry for 'make images'
                            (default: ghcr.io/OWNER)
       --remote NAME        Git remote to infer the module path from
                            (default: origin)
-  -y, --yes                Accept the defaults and don't prompt
+  -y, --no-confirm         Don't pause to confirm the settings before changing
+                           files
   -f, --force              Run even if the working tree has uncommitted changes
   -n, --dry-run            Report what would change without touching anything
   -t, --target DIR         Project root to initialize (default: the project this
@@ -110,7 +116,7 @@ DESCRIPTION=""
 NAME=""
 REGISTRY=""
 REMOTE="origin"
-ASSUME_YES=false
+CONFIRM=true
 FORCE=false
 DRY_RUN=false
 TARGET=""
@@ -145,8 +151,8 @@ while [[ $# -gt 0 ]]; do
       REMOTE="${2:?value required for $1}"
       shift 2
       ;;
-    -y | --yes)
-      ASSUME_YES=true
+    -y | --no-confirm)
+      CONFIRM=false
       shift
       ;;
     -f | --force)
@@ -218,34 +224,34 @@ module_from_remote() {
   printf '%s\n' "$url"
 }
 
-# prompt VAR "Question" DEFAULT asks for a value on the terminal unless VAR is
-# already set or --yes was passed, falling back to DEFAULT on an empty answer.
-prompt() {
-  local var="$1" question="$2" default="$3" answer
+# require VAR "Question" "--flag" leaves VAR alone if it is already set (from
+# its flag or by inference); otherwise it asks for it on the terminal, and fails
+# if there is no terminal or the answer is empty.
+require() {
+  local var="$1" question="$2" flag="$3" answer=""
   if [[ -n "${!var}" ]]; then
     return
   fi
-  if ! $ASSUME_YES && [[ -t 0 ]]; then
-    if [[ -n "$default" ]]; then
-      read -r -p "$question [$default]: " answer
-    else
-      read -r -p "$question: " answer
-    fi
+  if [[ -t 0 ]]; then
+    read -r -p "$question: " answer
   fi
-  printf -v "$var" '%s' "${answer:-$default}"
+  if [[ -z "$answer" ]]; then
+    echo "$question is required: pass $flag." >&2
+    exit 1
+  fi
+  printf -v "$var" '%s' "$answer"
 }
 
-INFERRED_MODULE="$(module_from_remote || true)"
-if [[ "$INFERRED_MODULE" == "$TEMPLATE_MODULE" ]]; then
-  # Still pointing at the template itself (a plain clone): no useful default.
-  echo "The '$REMOTE' remote points at template-go itself; pass --module or answer the prompt." >&2
-  INFERRED_MODULE=""
-fi
-prompt MODULE "Go module path" "$INFERRED_MODULE"
 if [[ -z "$MODULE" ]]; then
-  echo "A module path is required: pass --module or add a '$REMOTE' git remote." >&2
-  exit 1
+  MODULE="$(module_from_remote || true)"
+  if [[ "$MODULE" == "$TEMPLATE_MODULE" ]]; then
+    # Still pointing at the template itself (a plain clone): not the new
+    # project's path.
+    echo "The '$REMOTE' remote points at template-go itself, so the module path can't be inferred from it." >&2
+    MODULE=""
+  fi
 fi
+require MODULE "Go module path (e.g. github.com/OWNER/REPO)" "--module"
 if [[ ! "$MODULE" =~ ^[A-Za-z0-9.-]+(/[A-Za-z0-9._~-]+)+$ ]]; then
   echo "Invalid module path '$MODULE' (expected e.g. github.com/OWNER/REPO)." >&2
   exit 1
@@ -256,24 +262,32 @@ MODULE_PARENT="${MODULE%/*}"
 OWNER="${MODULE_PARENT##*/}"
 MODULE_HOST="${MODULE%%/*}"
 OWNER_LOWER="$(printf '%s' "$OWNER" | tr '[:upper:]' '[:lower:]')"
+REPO_LOWER="$(printf '%s' "$REPO_NAME" | tr '[:upper:]' '[:lower:]')"
 
-prompt NAME "Project name" "$REPO_NAME"
-prompt APP "Binary name" "$(printf '%s' "$REPO_NAME" | tr '[:upper:]' '[:lower:]')"
+NAME="${NAME:-$REPO_NAME}"
+REGISTRY="${REGISTRY:-ghcr.io/$OWNER_LOWER}"
+
+# The repository name is only a usable binary name if it fits the rules below
+# once lowercased (e.g. not "my.repo"); otherwise ask.
+if [[ -z "$APP" && "$REPO_LOWER" =~ ^[a-z0-9][a-z0-9_-]*$ ]]; then
+  APP="$REPO_LOWER"
+fi
+require APP "Binary name" "--app"
 if [[ ! "$APP" =~ ^[a-z0-9][a-z0-9_-]*$ ]]; then
   echo "Invalid binary name '$APP': use lowercase letters, digits, '-' and '_'." >&2
   exit 1
 fi
-prompt PACKAGE "Go package name" "${APP//[-_]/}"
+
+if [[ -z "$PACKAGE" && "${APP//[-_]/}" =~ ^[a-z] ]]; then
+  PACKAGE="${APP//[-_]/}"
+fi
+require PACKAGE "Go package name" "--package"
 if [[ ! "$PACKAGE" =~ ^[a-z][a-z0-9]*$ ]]; then
   echo "Invalid Go package name '$PACKAGE': use lowercase letters and digits, starting with a letter." >&2
   exit 1
 fi
-prompt DESCRIPTION "Project description" ""
-if [[ -z "$DESCRIPTION" ]]; then
-  echo "A description is required: pass --description." >&2
-  exit 1
-fi
-prompt REGISTRY "Container registry" "ghcr.io/$OWNER_LOWER"
+
+require DESCRIPTION "Project description" "--description"
 
 # Protobuf packages are dot-separated identifiers, so derive one from the
 # owner the same way the Go package name is derived from the binary name.
@@ -299,10 +313,14 @@ if [[ "$MODULE_HOST" != "github.com" ]]; then
   echo "  note:         $MODULE_HOST is not github.com; review the README badges by hand."
 fi
 
-if ! $ASSUME_YES && ! $DRY_RUN && [[ -t 0 ]]; then
-  read -r -p "Proceed? [y/N] " answer
+if $CONFIRM && ! $DRY_RUN; then
+  if [[ ! -t 0 ]]; then
+    echo "No terminal to confirm the settings on; pass --no-confirm to proceed without confirming." >&2
+    exit 1
+  fi
+  read -r -p "Proceed with these settings? [y/N] " answer
   [[ "$answer" =~ ^[Yy] ]] || {
-    echo "Aborted."
+    echo "Aborted; nothing was changed."
     exit 1
   }
 fi
