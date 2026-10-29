@@ -48,8 +48,10 @@
 # settings are then shown for a final check before anything changes; pass
 # --no-confirm to skip that pause, e.g. in CI.
 #
-# Nothing is committed and nothing is pushed: the script leaves the changes in
-# the working tree for review.
+# Nothing is committed and nothing is pushed: the script stages its changes
+# (renames, edits and the tidy-up) so they are ready for the initial commit
+# once reviewed. If the tree had uncommitted changes to begin with (--force),
+# only the files the script itself edited are staged.
 #
 # Usage: scripts/template-go/init-project.sh [options]
 #
@@ -82,7 +84,7 @@ Initialize a new project created from template-go: set the Go module path,
 rename the exampleapp binary, and replace the remaining template references.
 Values not passed as flags are inferred from the 'origin' git remote where
 possible and prompted for otherwise; the settings are shown for confirmation
-before anything changes. Changes are left uncommitted for review.
+before anything changes. Changes are staged but not committed.
 
 Options:
   -m, --module PATH        Go module path (default: from the origin remote,
@@ -200,8 +202,13 @@ if [[ ! -d "cmd/$TEMPLATE_APP" ]]; then
   exit 0
 fi
 
-if ! $FORCE && ! $DRY_RUN && git rev-parse --git-dir >/dev/null 2>&1 &&
-  [[ -n "$(git status --porcelain)" ]]; then
+IN_GIT=false
+STARTED_CLEAN=true
+if git rev-parse --git-dir >/dev/null 2>&1; then
+  IN_GIT=true
+  [[ -z "$(git status --porcelain)" ]] || STARTED_CLEAN=false
+fi
+if ! $FORCE && ! $DRY_RUN && ! $STARTED_CLEAN; then
   echo "The working tree has uncommitted changes; commit or stash them first (or pass --force)." >&2
   exit 1
 fi
@@ -334,6 +341,34 @@ if $CONFIRM && ! $DRY_RUN; then
   }
 fi
 
+# --- renaming files ---------------------------------------------------------
+
+# Renamed before the rewrite below, so the files it edits (and later stages)
+# are listed at their final paths.
+
+RENAMED=()
+
+# move SRC DST renames with git when the file is tracked, so history follows.
+move() {
+  local src="$1" dst="$2"
+  [[ "$src" == "$dst" || ! -e "$src" ]] && return
+  RENAMED+=("$src -> $dst")
+  $DRY_RUN && return
+  mkdir -p "$(dirname "$dst")"
+  if git ls-files --error-unmatch "$src" >/dev/null 2>&1; then
+    git mv "$src" "$dst"
+  else
+    mv "$src" "$dst"
+  fi
+}
+
+move "cmd/$TEMPLATE_APP/$TEMPLATE_APP.go" "cmd/$TEMPLATE_APP/$APP.go"
+move "cmd/$TEMPLATE_APP" "cmd/$APP"
+move "internal/$TEMPLATE_APP/${TEMPLATE_APP}_test.go" "internal/$TEMPLATE_APP/${PACKAGE}_test.go"
+move "internal/$TEMPLATE_APP/$TEMPLATE_APP.go" "internal/$TEMPLATE_APP/$PACKAGE.go"
+move "internal/$TEMPLATE_APP" "internal/$PACKAGE"
+move "proto/$TEMPLATE_APP.proto" "proto/$PACKAGE.proto"
+
 # --- rewriting files --------------------------------------------------------
 
 # Every project file the script may edit: tracked (or, outside git, present)
@@ -367,10 +402,13 @@ rewrite() {
   rm -f "$tmp"
 }
 
-export TEMPLATE_MODULE TEMPLATE_REPO_PATH TEMPLATE_APP TEMPLATE_APP_URL \
-  TEMPLATE_PROTO_PACKAGE TEMPLATE_REGISTRY TEMPLATE_DESCRIPTION \
-  TEMPLATE_CODECOV_TOKEN MODULE APP PACKAGE DESCRIPTION NAME REGISTRY \
-  PROTO_PACKAGE REPO_PATH
+# One export per line, not a single one continued with backslashes: a Windows
+# checkout can have CRLF line endings, and a backslash followed by CR does not
+# continue the line.
+export TEMPLATE_MODULE TEMPLATE_REPO_PATH TEMPLATE_APP TEMPLATE_APP_URL
+export TEMPLATE_PROTO_PACKAGE TEMPLATE_REGISTRY TEMPLATE_DESCRIPTION
+export TEMPLATE_CODECOV_TOKEN
+export MODULE APP PACKAGE DESCRIPTION NAME REGISTRY PROTO_PACKAGE REPO_PATH
 
 # Order matters: the most specific strings go first, so e.g. the internal
 # import path is rewritten before the bare module path would claim it.
@@ -421,31 +459,6 @@ while IFS= read -r file; do
   rewrite "$file" "$program"
 done < <(list_files)
 
-# --- renaming files ---------------------------------------------------------
-
-RENAMED=()
-
-# move SRC DST renames with git when the file is tracked, so history follows.
-move() {
-  local src="$1" dst="$2"
-  [[ "$src" == "$dst" || ! -e "$src" ]] && return
-  RENAMED+=("$src -> $dst")
-  $DRY_RUN && return
-  mkdir -p "$(dirname "$dst")"
-  if git ls-files --error-unmatch "$src" >/dev/null 2>&1; then
-    git mv "$src" "$dst"
-  else
-    mv "$src" "$dst"
-  fi
-}
-
-move "cmd/$TEMPLATE_APP/$TEMPLATE_APP.go" "cmd/$TEMPLATE_APP/$APP.go"
-move "cmd/$TEMPLATE_APP" "cmd/$APP"
-move "internal/$TEMPLATE_APP/${TEMPLATE_APP}_test.go" "internal/$TEMPLATE_APP/${PACKAGE}_test.go"
-move "internal/$TEMPLATE_APP/$TEMPLATE_APP.go" "internal/$TEMPLATE_APP/$PACKAGE.go"
-move "internal/$TEMPLATE_APP" "internal/$PACKAGE"
-move "proto/$TEMPLATE_APP.proto" "proto/$PACKAGE.proto"
-
 # --- report -----------------------------------------------------------------
 
 if $DRY_RUN; then
@@ -480,12 +493,29 @@ if ! $DRY_RUN && $DO_TIDY; then
   fi
 fi
 
-if ! $DRY_RUN; then
-  cat <<EOF
+# --- staging ----------------------------------------------------------------
 
-Next steps:
-  * review the changes with 'git status' and 'git diff'
-EOF
+# git mv already staged the renames; stage the edits too, so the whole
+# initialization is ready to commit. From a clean start every change is the
+# script's (including go mod tidy and make lint's fixes); otherwise only the
+# files it edited are staged, leaving the pre-existing changes alone.
+if ! $DRY_RUN && $IN_GIT; then
+  if $STARTED_CLEAN; then
+    git add -A
+  elif [[ ${#CHANGED[@]} -gt 0 ]]; then
+    git add -- "${CHANGED[@]}"
+  fi
+fi
+
+if ! $DRY_RUN; then
+  echo
+  echo "Next steps:"
+  if $IN_GIT; then
+    echo "  * review the staged changes with 'git status' and 'git diff --cached'"
+    $STARTED_CLEAN || echo "  * stage any formatting fixes to files that had uncommitted changes before"
+  else
+    echo "  * review the changes"
+  fi
   if ! $DO_TIDY; then
     echo "  * run 'make lint'"
   elif ! $LINT_OK; then
@@ -494,6 +524,7 @@ EOF
   cat <<EOF
   * run 'make test'
   * run scripts/template-go/configure-github-repo.sh to apply the repo settings
+  * commit
 EOF
 fi
 
