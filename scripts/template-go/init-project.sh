@@ -26,6 +26,9 @@
 #   4. rewrite the remaining template references (README title, intro and
 #      badges, Dockerfile labels and entrypoints, CONTRIBUTING, SECURITY) to
 #      the new project name, description and URLs
+#   5. tidy up: `go mod tidy`, then `make format` to rewrite whatever the
+#      renames left unformatted (e.g. a README table whose column got wider),
+#      then `make lint` to check the result
 #
 # APP is the binary name. It is also the cmd/ directory, the docker image name
 # and the ALL_APPS entry, so it must be lowercase ([a-z0-9_-]). PKG is the Go
@@ -99,13 +102,14 @@ Options:
   -y, --no-confirm         Don't pause to confirm the settings before changing
                            files
   -f, --force              Run even if the working tree has uncommitted changes
+      --no-tidy            Skip the final go mod tidy, make format and make lint
   -n, --dry-run            Report what would change without touching anything
   -t, --target DIR         Project root to initialize (default: the project this
                            script sits in, i.e. two levels above
                            scripts/template-go/)
   -h, --help               Show this help
 
-Requires git and perl.
+Requires git and perl; the tidy step also needs go and make.
 EOF
 }
 
@@ -119,6 +123,7 @@ REMOTE="origin"
 CONFIRM=true
 FORCE=false
 DRY_RUN=false
+DO_TIDY=true
 TARGET=""
 
 while [[ $# -gt 0 ]]; do
@@ -157,6 +162,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     -f | --force)
       FORCE=true
+      shift
+      ;;
+    --no-tidy)
+      DO_TIDY=false
       shift
       ;;
     -n | --dry-run)
@@ -454,12 +463,43 @@ if ! $DRY_RUN && [[ -n "$LEFTOVER" ]]; then
   printf '%s\n' "$LEFTOVER" | sed 's/^/  /'
 fi
 
+# --- tidying up -------------------------------------------------------------
+
+# Run after the report, so the edit/rename list isn't buried under make's
+# output. A lint failure doesn't undo anything: the changes stay in place and
+# the script exits non-zero so the issues get looked at before committing.
+LINT_OK=true
+if ! $DRY_RUN && $DO_TIDY; then
+  echo
+  echo "== tidying up =="
+  if [[ -f go.mod ]]; then
+    go mod tidy
+  fi
+  make format
+  if ! make lint; then
+    LINT_OK=false
+  fi
+fi
+
 if ! $DRY_RUN; then
   cat <<EOF
 
 Next steps:
   * review the changes with 'git status' and 'git diff'
-  * run 'make test' and 'make lint'
+EOF
+  if ! $DO_TIDY; then
+    echo "  * run 'make format' and 'make lint'"
+  elif ! $LINT_OK; then
+    echo "  * fix the issues 'make lint' reported above"
+  fi
+  cat <<EOF
+  * run 'make test'
   * run scripts/template-go/configure-github-repo.sh to apply the repo settings
 EOF
+fi
+
+if ! $LINT_OK; then
+  echo
+  echo "make lint reported issues; the changes were made but need fixing." >&2
+  exit 1
 fi

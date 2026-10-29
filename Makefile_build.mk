@@ -188,6 +188,14 @@ wasm-binaries: $(WASM_BINARIES)
 
 lint: lint-go lint-terraform lint-docker lint-yaml lint-shell lint-markdown lint-vuln
 
+# format rewrites the files the lint checks can fix mechanically (Go, Terraform
+# and Markdown formatting), so `make lint` only has real issues left to report.
+format: format-terraform $(GOFUMPT) $(GOLANGCI_LINT) $(RUMDL)
+	$(GO) fmt ./...
+	"$(GOFUMPT)" -l -w .
+	"$(GOLANGCI_LINT)" fmt ./...
+	"$(RUMDL)" fmt --exclude "$(RUMDL_EXCLUDE)" .
+
 ifneq ($(wildcard install/terraform),)
 lint-terraform: $(TERRAFORM) $(TFLINT) $(TRIVY)
 	$(IGNORE_LINT_CHECK)(cd "$(REPOSITORY_ROOT)/install/terraform"; "$(TERRAFORM)" fmt .)
@@ -199,8 +207,12 @@ lint-terraform: $(TERRAFORM) $(TFLINT) $(TRIVY)
 	# trivy) covers that instead, reusing the same tool already pinned for
 	# image scanning rather than adding a second, redundant IaC scanner.
 	$(IGNORE_LINT_CHECK)"$(TRIVY)" config --severity HIGH,CRITICAL --exit-code 1 "$(REPOSITORY_ROOT)/install/terraform"
+
+format-terraform: $(TERRAFORM)
+	(cd "$(REPOSITORY_ROOT)/install/terraform"; "$(TERRAFORM)" fmt .)
 else
 lint-terraform:
+format-terraform:
 endif
 
 lint-go: $(GOLANGCI_LINT) $(GOFUMPT) $(REVIVE)
@@ -390,4 +402,4 @@ system-info:
 sync-upstream:
 	-git fetch origin; git add -A; git commit -m"Save pending changes."; git rebase -i origin/main
 
-.PHONY: tools all assets testassets protos windows-binaries release-binaries wasm-binaries lint lint-terraform lint-go lint-docker lint-yaml lint-shell lint-markdown lint-vuln bench test test-go test-deflake test-tf deps clean clean-cache presubmit ensure-builder docker-images scan-images images linux-images windows-images no-sudo system-info sync-upstream
+.PHONY: tools all assets testassets protos windows-binaries release-binaries wasm-binaries lint lint-terraform format format-terraform lint-go lint-docker lint-yaml lint-shell lint-markdown lint-vuln bench test test-go test-deflake test-tf deps clean clean-cache presubmit ensure-builder docker-images scan-images images linux-images windows-images no-sudo system-info sync-upstream
