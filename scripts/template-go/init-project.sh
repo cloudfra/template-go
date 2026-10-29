@@ -374,9 +374,11 @@ MAKEFILE_SUBST='
 '
 
 # The README title and intro paragraph describe the template; swap them for the
-# project name and description. The codecov token belongs to template-go.
+# project name and description. The codecov token belongs to template-go, and
+# the section on running this script has served its purpose.
 README_SUBST='
   s{\A# template-go\n}{# $ENV{NAME}\n};
+  s{^### Starting a new project\n.*?(?=^## )}{}ms;
   s{^A starter template for Go projects.*?\n\n}{$ENV{DESCRIPTION}\n\n}ms;
   s{\Q$ENV{TEMPLATE_CODECOV_TOKEN}\E}{}g;
 '
