@@ -47,6 +47,23 @@ make -j$(nproc)
 make run
 ```
 
+### Starting a new project
+
+In a repo created from this template, `scripts/template-go/init-project.sh`
+replaces the template's placeholders: it sets the Go module path from the
+`origin` remote, renames `cmd/exampleapp` (and `internal/exampleapp`,
+`proto/exampleapp.proto`) to your binary name, and updates the Makefile,
+Dockerfiles and docs to match. It prompts for anything it can't infer, such
+as the project description:
+
+```bash
+scripts/template-go/init-project.sh
+# or non-interactively
+scripts/template-go/init-project.sh --yes --app mytool --description "Does things."
+```
+
+Pass `--dry-run` to list the files it would change without touching anything.
+
 ## Project layout
 
 ```bash
