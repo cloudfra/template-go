@@ -87,6 +87,9 @@ package; the build system picks it up automatically.
 | `make run`                         | Build and run the exampleapp binary                                                                            |
 | `make test`                        | Run the unit test suite                                                                                        |
 | `make bench`                       | Run benchmarks                                                                                                 |
+| `make test-js`                     | Run the project's JavaScript tests (needs `JAVASCRIPT_DIR`, see [JavaScript and browser tests](#javascript-and-browser-tests)) |
+| `make test-browser`                | Run the JavaScript browser tests in each headless browser Playwright installs                                  |
+| `make browse TARGET=...`           | Open a page in a headless browser: its console output, failures, timings and a screenshot                      |
 | `make test-deflake`                | Re-run tests to catch flakes                                                                                   |
 | `make lint`                        | Run the full lint suite (see Features)                                                                         |
 | `make protos`                      | Generate code from `.proto` definitions                                                                        |
@@ -106,6 +109,43 @@ package; the build system picks it up automatically.
 make test
 make bench
 ```
+
+## JavaScript and browser tests
+
+`Makefile_javascript.mk` adds JavaScript tests, benchmarks and headless-browser
+tests. It is inert in the template: `JAVASCRIPT_DIR` is empty, so `make test`
+runs only the Go and Terraform suites and the JavaScript targets just say so.
+
+To turn it on, set in the project's own `Makefile` (which `sync-template.sh`
+preserves; `Makefile_javascript.mk` itself is replaced on a template sync):
+
+```make
+JAVASCRIPT_DIR = pkg/myapp/web
+JAVASCRIPT_SERVER = build/bin/$(HOST_OS)/$(HOST_ARCH)/myapp$(EXE)
+```
+
+The layout it expects under `JAVASCRIPT_DIR` is `*/test/*.test.js` (run on Node
+alone), `*/browser/*.browser.js` (driven in a real browser against
+`JAVASCRIPT_SERVER`), and `bench.js`, `browserbench.js` and `browse.js` at its
+top; each name is a variable in the makefile. Setting `JAVASCRIPT_DIR` also adds
+`test-js` to `TEST_TARGETS`, so it runs as part of `make test`.
+
+```bash
+make test-js          # Node tests; part of `make test`
+make tools-js         # install playwright and the browsers into build/toolchain
+make test-browser     # the browser tests, one run per HEADLESS_BROWSERS
+make benchmark-browser [BROWSER=firefox]
+make browse TARGET=./site [SCREENSHOT=build/page.png]
+```
+
+Node.js and npm must already be installed; Playwright and the browsers are
+downloaded into `build/toolchain/` (`build/toolchain/node`,
+`build/toolchain/browsers`) and removed by `make clean`. Chromium and Firefox
+work on a plain Linux install; WebKit needs system libraries only root can add
+(`playwright install-deps webkit`), so it is opt-in with
+`make test-browser HEADLESS_BROWSERS=webkit`. `test-browser` is deliberately
+not part of `make test`: it downloads browsers, which the Go test suite
+shouldn't need.
 
 ## Simulating CI locally
 
