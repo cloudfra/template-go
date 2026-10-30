@@ -34,11 +34,11 @@
 # edits after the sync.
 #
 # Every other file directly under scripts/ (e.g. the CI hooks prepare-ci.sh
-# and Initialize-CI.ps1), plus a few root dotfiles (.codespellignore and
-# .gitignore), is the exception: it is copied in only when the target does not
-# already have one and is never overwritten, because the whole point of those
-# is to be customized. A project can edit them freely and
-# re-running the sync keeps its version.
+# and Initialize-CI.ps1), plus AGENTS.md and a few root dotfiles
+# (.codespellignore and .gitignore), is the exception: it is copied in only
+# when the target does not already have one and is never overwritten, because
+# the whole point of those is to be customized. A project can edit them freely
+# and re-running the sync keeps its version.
 #
 # This is a HARD replace: local edits to any of the managed files are
 # discarded and project-specific versions (e.g. a customized .golangci.yml) are
@@ -60,9 +60,10 @@ SCRIPT_SOURCE_REF="main"
 STANDARD_DIR="scripts/template-go"
 # Everything directly under here (outside STANDARD_DIR) is customizable.
 SEED_DIR="scripts"
-# Root dotfiles that are seeded like SEED_DIR rather than replaced like the
-# other root dotfiles.
-SEED_ROOT_FILES=(".codespellignore" ".gitignore")
+# Root files that are seeded like SEED_DIR rather than replaced like the
+# other managed files: a project is expected to customize them, so the sync
+# only copies them in when missing.
+SEED_ROOT_FILES=(".codespellignore" ".gitignore" "AGENTS.md")
 
 # --- argument parsing -------------------------------------------------------
 
@@ -74,8 +75,9 @@ Sync template-managed files (Makefile_*.mk, root dotfiles, .github/,
 scripts/template-go/) from upstream template-go into the target project. This
 is a hard replace and is safe to re-run. .github/workflows/deploy-*.yaml are
 preserved, and the other files directly under scripts/ (e.g.
-scripts/prepare-ci.sh, scripts/Initialize-CI.ps1), .codespellignore and
-.gitignore are added only when missing and never overwritten.
+scripts/prepare-ci.sh, scripts/Initialize-CI.ps1), AGENTS.md,
+.codespellignore and .gitignore are added only when missing and never
+overwritten.
 
 Options:
   -s, --source DIR   Read upstream files from local DIR instead of cloning

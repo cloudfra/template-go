@@ -32,8 +32,9 @@ where that becomes visible. Check the diff for:
   config tweaks.
 
 The other files directly under `scripts/` (such as the per-project CI
-hooks `scripts/prepare-ci.sh` and `scripts/Initialize-CI.ps1`) are the
-exception and are never overwritten: they are copied in only when
-missing, so a project's customization of them survives every sync.
+hooks `scripts/prepare-ci.sh` and `scripts/Initialize-CI.ps1`), plus
+`AGENTS.md`, `.codespellignore` and `.gitignore`, are the exception and are
+never overwritten: they are copied in only when missing, so a project's
+customization of them survives every sync.
 
 Nothing here merges automatically - merging is a human decision.
