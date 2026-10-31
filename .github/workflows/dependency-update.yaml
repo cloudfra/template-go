@@ -92,12 +92,23 @@ jobs:
         run: ./scripts/template-go/existing-pathspecs.sh "Makefile*.mk,install/terraform/*.tf,third_party/,go.*"
       - name: Open pull request
         # https://github.com/peter-evans/create-pull-request
-        # PRs opened with GITHUB_TOKEN don't start workflow runs (GitHub's
-        # recursion guard), so the CI workflow doesn't fire on this PR by
-        # itself - close and reopen it to run CI.
+        # Opened with PULL_REQUEST_TOKEN - an org or repository secret
+        # holding a GitHub App installation token or a PAT - instead of
+        # this job's GITHUB_TOKEN. An organization can forbid the
+        # Actions token from opening pull requests at all (the "Allow
+        # GitHub Actions to create or approve pull requests" setting,
+        # off by default for organizations), and the API then rejects
+        # the attempt with "GitHub Actions is not permitted to create
+        # or approve pull requests", which fails this step outright.
+        # A non-Actions author also clears the other GITHUB_TOKEN
+        # limitation: a PR opened with it doesn't start workflow runs
+        # (GitHub's recursion guard), so CI never tests these PRs.
+        # The "|| github.token" fallback covers a repo whose org has
+        # that setting enabled and which has no secret set; there the
+        # CI gap above remains - close and reopen the PR to run CI.
         uses: peter-evans/create-pull-request@v8
         with:
-          token: ${{ github.token }}
+          token: ${{ secrets.PULL_REQUEST_TOKEN || github.token }}
           base: main
           # One reused branch: each scheduled run updates the open PR in
           # place instead of stacking another one on top of it.

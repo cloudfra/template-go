@@ -47,6 +47,20 @@ The reason is reviewability and debuggability: `actionlint` and
 can be run and fixed locally, while a heredoc buried in a workflow can
 only be tested by pushing a commit.
 
+### The `PULL_REQUEST_TOKEN` secret
+
+`dependency-update.yaml` and `template-sync.yaml` open their pull requests
+with `secrets.PULL_REQUEST_TOKEN`, falling back to the job's own
+`GITHUB_TOKEN` when the secret is not set. That fallback is a last resort,
+not the working configuration: by default an organization does not allow
+workflows to create pull requests, so the step fails with `GitHub Actions
+is not permitted to create or approve pull requests`. Put a GitHub App
+installation token or a personal access token with `contents: write` and
+`pull-requests: write` scopes in the secret, set once at the organization
+level so every repo created from this template inherits it. A non-Actions
+author also closes the other `GITHUB_TOKEN` limitation: a pull request
+opened with it starts no workflow runs, so CI never tests it.
+
 ## Adding a new `cmd/` binary
 
 Per the README's [Project layout](README.md#project-layout), create a new
