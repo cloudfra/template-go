@@ -87,12 +87,15 @@ jobs:
         # https://github.com/peter-evans/create-pull-request
         # A no-op when the sync changed nothing: the action only opens a
         # PR when there is something to commit.
-        # PRs opened with GITHUB_TOKEN don't start workflow runs
-        # (GitHub's recursion guard), so CI doesn't fire on this PR by
-        # itself - close and reopen it to run CI.
+        # PULL_REQUEST_TOKEN rather than this job's GITHUB_TOKEN: an
+        # organization may forbid the Actions token from opening pull
+        # requests, which fails this step outright. See the same step
+        # in dependency-update.yaml for the full reasoning, and
+        # "The PULL_REQUEST_TOKEN secret" in CONTRIBUTING.md for
+        # setting the secret up.
         uses: peter-evans/create-pull-request@v8
         with:
-          token: ${{ github.token }}
+          token: ${{ secrets.PULL_REQUEST_TOKEN || github.token }}
           base: main
           # One reused branch: each scheduled run updates the open PR in
           # place instead of stacking another one on top of it.
