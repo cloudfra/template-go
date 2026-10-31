@@ -28,6 +28,12 @@
 # with the upstream equivalents. Files upstream no longer ships are deleted,
 # files it now ships are added, and shared files are overwritten.
 #
+# Nothing is deleted inside those two directories beyond the wholesale
+# replacement. A project customizes what lives in there, so a file that stops
+# shipping upstream is removed by name in RETIRED below instead: when the
+# template retires a workflow, its paths get listed here so every consumer
+# drops it and the sync says which file went away.
+#
 # That includes .github/workflows/create-release.yaml, the tag-triggered
 # release pipeline. Its release files are globs (build/release/*-linux_amd64
 # and so on) that match every app in ALL_APPS, so it needs no per-project
@@ -44,6 +50,11 @@
 # discarded and project-specific versions (e.g. a customized .golangci.yml) are
 # clobbered. Prefer running it on a branch/PR, or with --dry-run first, so the
 # change is reviewable.
+#
+# Nothing runs it for you: the template ships no workflow that syncs on a
+# schedule, because reviewing a hard replace needs a pull request and a
+# scheduled job can only open one with a long-lived token handed to a
+# third-party action. Run it from a branch and open the pull request yourself.
 #
 # Usage: scripts/template-go/sync-template.sh [options]
 #
@@ -65,6 +76,20 @@ SEED_DIR="scripts"
 # only copies them in when missing.
 SEED_ROOT_FILES=(".codespellignore" ".gitignore" "AGENTS.md")
 
+# Files the template has retired, deleted from the target by name. Listed one
+# by one rather than worked out from the replaced directories: a project
+# customizes what lives inside .github/ and scripts/template-go/, so the sync
+# removes nothing in there beyond the replacement it already makes. Add the
+# paths of a workflow (and any file that existed only for it) when the
+# template stops shipping it.
+RETIRED=(
+  ".github/dependency-update-pr-body.md"
+  ".github/template-sync-pr-body.md"
+  ".github/workflows/dependency-update.yaml"
+  ".github/workflows/template-sync.yaml"
+  "scripts/template-go/existing-pathspecs.sh"
+)
+
 # --- argument parsing -------------------------------------------------------
 
 usage() {
@@ -77,7 +102,8 @@ is a hard replace and is safe to re-run. .github/workflows/deploy-*.yaml are
 preserved, and the other files directly under scripts/ (e.g.
 scripts/prepare-ci.sh, scripts/Initialize-CI.ps1), AGENTS.md,
 .codespellignore and .gitignore are added only when missing and never
-overwritten.
+overwritten. A file the template no longer ships - a retired workflow, for
+example - is deleted and reported by name.
 
 Options:
   -s, --source DIR   Read upstream files from local DIR instead of cloning
@@ -367,6 +393,20 @@ act() {
   esac
 }
 
+# delete_retired_files removes the RETIRED paths from the target, by name and
+# before the wholesale replacements. Under --dry-run act prints them; in a
+# real run this prints them, so a project always sees which file the template
+# took away instead of finding it in a diff afterwards.
+delete_retired_files() {
+  local f
+  for f in "${RETIRED[@]}"; do
+    if [[ -e "$TARGET/$f" ]]; then
+      [[ "$DRY_RUN" == true ]] || printf '  %-7s %s\n' delete "$f"
+      act delete "$f"
+    fi
+  done
+}
+
 # stash_preserved / restore_preserved carry PRESERVE across the .github/
 # replacement. Under --dry-run there is nothing to carry.
 stash_preserved() {
@@ -406,6 +446,7 @@ done
 for f in ${KEEP[@]+"${KEEP[@]}"}; do
   act keep "$f"
 done
+delete_retired_files
 if (( S_HAS_STANDARD )); then
   act replace "$STANDARD_DIR"
 elif (( T_HAS_STANDARD )); then
