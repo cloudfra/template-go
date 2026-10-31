@@ -36,11 +36,9 @@ for the rest (benchmarks, Terraform tests, Docker images, etc.).
 
 Workflow YAML in this repo stays declarative: no inline scripts, and no
 inline multi-line payloads. A step's `run:` invokes a committed file under
-`scripts/` instead of embedding shell, and long text (PR bodies, job
-descriptions) lives in a file referenced by path — for example
-`.github/workflows/dependency-update.yaml` passes
-`body-path: .github/dependency-update-pr-body.md` to
-`peter-evans/create-pull-request` rather than inlining the body.
+`scripts/` instead of embedding shell, and long text (job descriptions,
+generated reports) belongs in a file referenced by path rather than inlined
+as a YAML block scalar.
 
 The reason is reviewability and debuggability: `actionlint` and
 `shellcheck` only see what is inside `run:`, and a script under `scripts/`
