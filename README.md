@@ -71,6 +71,7 @@ Pass `--dry-run` to list the files it would change without touching anything.
 ```bash
 cmd/<app>/          Entry point(s) for each binary (one directory per app)
 internal/           Private application and library code
+pkg/                Public packages other projects can import
 install/terraform/  Infrastructure-as-code for deploying the app
 third_party/        Vendored protobuf/gRPC-gateway definitions
 build/              Build outputs (binaries, toolchain) - not checked in
