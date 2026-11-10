@@ -12,15 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Builds and publishes a release when a v* tag is pushed: the release
-# binaries and package on the GitHub release, and the container images on
-# Docker Hub and GitHub Container Registry. The commit was already linted and
-# fully tested by deploy.yaml on its way to main, so this runs the tests once
-# rather than the whole lint, deflake and coverage pass.
+# Builds and publishes a temporary 1 day retained release on demand.
 name: Create Temporary Release
 
 on:
   workflow_dispatch:
+  issue_comment:
+    types: [created]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -28,16 +26,17 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  MAKEFLAGS: 'NICHE_PLATFORMS= LINUX_PLATFORMS=linux/amd64 WINDOWS_PLATFORMS=windows/amd64'
+  MAKEFLAGS: 'NICHE_PLATFORMS= LINUX_PLATFORMS=linux/amd64 WINDOWS_PLATFORMS=windows/amd64 RELEASE_PLATFORMS=linux/amd64\ windows/amd64'
 
 jobs:
-  build-release:
-    name: "Build Release"
-    runs-on: ["self-hosted", "linux", "large"]
-    permissions:
-      contents: write
-      packages: write
-    timeout-minutes: 60
+  build-temp-release:
+    # Only run if the comment is on a PR and matches our command keyword
+    if: >-
+      (github.event.issue.pull_request && contains(github.event.comment.body, '/create-temp-release')) ||
+      (github.event_name == 'workflow_dispatch')
+    name: "Build Temporary Release"
+    runs-on: ["self-hosted", "linux"]
+    timeout-minutes: 30
     steps:
       - name: Fix mod cache permissions
         run: |
@@ -73,8 +72,10 @@ jobs:
       - name: Release Package
         run: make build/packages/release.tar.gz
       - name: 'Upload Build Artifact'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: release.tar.gz
           path: build/packages/release.tar.gz
           retention-days: 1
+          archive: false
+          if-no-files-found: error
