@@ -13,9 +13,9 @@
 # limitations under the License.
 
 # Builds a throwaway release package for the pull request that asked for it:
-# started by a '/create-temp-release' comment from a repo owner, member or
-# collaborator, or a manual run, and uploaded as an artifact retained for 1
-# day. Unlike create-release.yaml this publishes nothing - no GitHub release
+# started by a '/create-temp-release' comment from a member of the organization
+# that owns the repo, or a manual run, and uploaded as an artifact retained for
+# 1 day. Unlike create-release.yaml this publishes nothing - no GitHub release
 # entry and no container images.
 name: Create Temporary Release
 
@@ -42,13 +42,14 @@ env:
 jobs:
   build-temp-release:
     # A comment trigger has to be on a pull request, mention the command, and
-    # come from someone with a repo role, because the job builds and runs that
-    # pull request's own code on a self-hosted runner.
+    # come from someone in the organization that owns the repo: OWNER and
+    # MEMBER are org roles, COLLABORATOR is an outside collaborator. The job
+    # compiles that pull request's own code on a self-hosted runner.
     if: >-
       github.event_name == 'workflow_dispatch'
       || (github.event.issue.pull_request
       && contains(github.event.comment.body, '/create-temp-release')
-      && contains(fromJSON('["OWNER", "MEMBER", "COLLABORATOR"]'),
+      && contains(fromJSON('["OWNER", "MEMBER"]'),
       github.event.comment.author_association))
     name: "Build Temporary Release"
     runs-on: ["self-hosted", "linux"]

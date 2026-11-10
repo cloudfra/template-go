@@ -209,8 +209,9 @@ before relying on the artifact:
 - The trigger is a substring match on a newly created comment, so a comment
   quoting `/create-temp-release` in review discussion starts a run too. Since
   that run compiles the pull request's code on a self-hosted runner, the job
-  only proceeds for a commenter whose `author_association` is `OWNER`,
-  `MEMBER` or `COLLABORATOR`; anyone else's command comment is ignored.
+  only proceeds for a commenter whose `author_association` is `OWNER` or
+  `MEMBER` - a member of the organization that owns the repo. An outside
+  collaborator's command comment is ignored.
 
 ## Deployment
 
