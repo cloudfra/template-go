@@ -45,6 +45,14 @@ The reason is reviewability and debuggability: `actionlint` and
 can be run and fixed locally, while a heredoc buried in a workflow can
 only be tested by pushing a commit.
 
+The one workflow meant to be started by hand is
+`create-temp-release.yaml`: commenting `/create-temp-release` on a pull
+request (or running it from the Actions tab) builds a throwaway
+`release.tar.gz` artifact for testing, kept for 1 day and published
+nowhere. See the README's
+[Temporary release builds](README.md#temporary-release-builds) for what it
+builds and what the comment trigger does not do.
+
 ## Adding a new `cmd/` binary
 
 Per the README's [Project layout](README.md#project-layout), create a new
