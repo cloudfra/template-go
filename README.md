@@ -28,9 +28,12 @@ boilerplate and start with working infrastructure on day one.
 - **Terraform deployment** — infrastructure-as-code under `install/terraform`
   for provisioning test and production environments.
 - **CI included** — GitHub Actions workflow (`.github/workflows/deploy.yaml`)
-  that builds, lints, and tests on every push and pull request, and a release
+  that builds, lints, and tests on every push and pull request, a release
   workflow (`.github/workflows/create-release.yaml`) that publishes the
-  binaries and container images when a `v*` tag is pushed.
+  binaries and container images when a `v*` tag is pushed, and an on-demand
+  one (`.github/workflows/create-temp-release.yaml`) that builds a short-lived
+  release package from a `/create-temp-release` comment on a pull request
+  (see [Temporary release builds](#temporary-release-builds)).
 - **Enforced linting** — `make lint` runs gofmt, gofumpt, golangci-lint,
   revive, hadolint, actionlint, govulncheck, tflint/terraform fmt, and
   trivy config (Terraform misconfiguration scanning), downloading its own
@@ -165,6 +168,49 @@ files:
 ```bash
 make CODESIGN_CERT=/path/to/cert.pem CODESIGN_KEY=/path/to/key.pem release-binaries
 ```
+
+## Temporary release builds
+
+`.github/workflows/create-temp-release.yaml` ("Create Temporary Release")
+builds the release package without publishing anything, so a change can be
+handed to a tester or a customer before it is merged and tagged. Comment
+`/create-temp-release` on a pull request, or start it manually from the
+Actions tab with "Run workflow":
+
+```bash
+gh pr comment <pr> --body '/create-temp-release'
+```
+
+The job builds `build/packages/release.tar.gz` — the same target
+`make release-binaries` fills, so the binaries inside are code-signed where
+the platform supports it — and uploads it as the `release.tar.gz` artifact,
+kept for 1 day and stored as the tarball itself rather than re-packed:
+
+```bash
+tar -xzf release.tar.gz
+```
+
+Only `linux/amd64` and `windows/amd64` are built: the workflow's `MAKEFLAGS`
+clears `NICHE_PLATFORMS` and narrows `LINUX_PLATFORMS`,
+`WINDOWS_PLATFORMS` and `RELEASE_PLATFORMS` to those two, which is what fits
+the job's 30-minute timeout on a plain `self-hosted` Linux runner (the
+`large` labels are reserved for `deploy.yaml` and `create-release.yaml`).
+
+What it does *not* do is publish: nothing is attached to a GitHub release and
+no container images are pushed, unlike the tag-triggered
+`create-release.yaml`. Two things about the comment trigger are worth knowing
+before relying on the artifact:
+
+- The code it builds is the pull request that asked for it - the checkout
+  step resolves `refs/pull/<n>/head` for the commented pull request, not the
+  branch it was commented on. The *workflow run* is still resolved against
+  the default branch, so an edit to `create-temp-release.yaml` itself only
+  takes effect for comment triggers once it is merged to `main`.
+- The trigger is a substring match on a newly created comment, so a comment
+  quoting `/create-temp-release` in review discussion starts a run too. Since
+  that run compiles the pull request's code on a self-hosted runner, the job
+  only proceeds for a commenter whose `author_association` is `OWNER`,
+  `MEMBER` or `COLLABORATOR`; anyone else's command comment is ignored.
 
 ## Deployment
 
