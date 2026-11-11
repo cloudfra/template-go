@@ -14,10 +14,12 @@ boilerplate and start with working infrastructure on day one.
 
 - **Cross-compilation** — build binaries for every supported OS/arch
   (Linux, Windows, macOS, BSDs, and more) with a single `make` invocation.
-- **Signed release binaries** — `make release-binaries` code-signs the
-  artifacts it can (all Windows architectures via Authenticode; only
-  `linux/386` and `linux/amd64` via an embedded detached signature) with
-  a self-signed cert generated on demand, or your own via
+- **Signed release binaries** — releases' Windows binaries are signed by
+  [SignPath](https://signpath.io) once the repository is set up for it (see
+  [Code signing](#code-signing)); otherwise `make release-binaries` signs
+  what it can (all Windows architectures via Authenticode; only
+  `linux/386` and `linux/amd64` via an embedded detached signature) with a
+  self-signed cert generated on demand, or your own via
   `CODESIGN_CERT`/`CODESIGN_KEY`. Every other platform is copied unsigned.
 - **Docker images** — package any binary defined under `cmd/` into a
   container image, either a quick single-arch build or a full
@@ -138,9 +140,54 @@ gh act pull_request -W .github/workflows/reviewdog.yaml --secret GITHUB_TOKEN=$(
   *and* correct repo/event context to fully succeed, not just the token
   shown above.
 
+## Code signing policy
+
+Free code signing provided by [SignPath.io](https://about.signpath.io),
+certificate by [SignPath Foundation](https://signpath.org).
+
+- Committers and reviewers: [members of the Cloudfra organization](https://github.com/orgs/cloudfra/people)
+- Approvers: [owners of the Cloudfra organization](https://github.com/orgs/cloudfra/people?query=role%3Aowner)
+
+Only binaries built by this repository's GitHub Actions workflows, from its
+own source, are signed, and an approver approves each release by hand.
+Changes from anyone who is not a committer are reviewed before they are
+merged. Everyone on the team signs in to GitHub and SignPath with
+multi-factor authentication.
+
+Privacy: this program will not transfer any information to other networked
+systems unless specifically requested by the user or the person installing
+or operating it.
+
 ## Code signing
 
-`make release-binaries` code-signs the release artifacts under
+Windows binaries in a release are signed with the trusted SignPath
+Foundation certificate (see [Code signing policy](#code-signing-policy)):
+`.github/workflows/sign-windows.yaml` builds them on a GitHub-hosted runner
+(SignPath signs nothing else for open source projects), stamped with version
+information by [`go-winres`](https://github.com/tc-hib/go-winres)
+(`WINDOWS_SIGNING=none`), and has SignPath sign them; `create-release.yaml`
+then publishes those copies (`WINDOWS_SIGNED_DIR`) instead of signing its
+own. Setting a repository up for it, once:
+
+1. The organization's SignPath account (one for all of Cloudfra) gets a
+   project named after the repository, linked to the *GitHub.com* trusted
+   build system, with two signing policies: `release-signing` (the SignPath
+   Foundation certificate, approved by an approver) and `test-signing`.
+   Its artifact configuration is `.signpath/artifact-configuration.xml`,
+   with the product name changed to the project's.
+2. Repository or organization variables: `SIGNPATH_ORGANIZATION_ID`, and
+   `SIGNPATH_PROJECT_SLUG` if the project's slug is not the repository's
+   name. A secret: `SIGNPATH_API_TOKEN`, the token of a SignPath CI user
+   that may submit to both policies.
+
+Until `SIGNPATH_ORGANIZATION_ID` is set, nothing goes to SignPath and the
+binaries are self-signed as below. A temporary release uses
+`vars.SIGNPATH_TEMP_SIGNING_POLICY`, `test-signing` unless set; its
+certificate is not trusted by Windows or browsers either, so set it to
+`release-signing` (each build then waits for an approver) when a temporary
+build has to download without warnings.
+
+Without SignPath, `make release-binaries` code-signs the release artifacts under
 `build/release/` where signing is supported, and copies everything else
 unsigned:
 
