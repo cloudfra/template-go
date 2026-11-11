@@ -112,6 +112,10 @@ jobs:
         uses: softprops/action-gh-release@v3
         with:
           generate_release_notes: true
+          # SignPath Foundation asks for the policy on the download page.
+          body: >-
+            [Code signing policy](${{ github.server_url }}/${{
+            github.repository }}#code-signing-policy)
           draft: false
           prerelease: false
           files: |
