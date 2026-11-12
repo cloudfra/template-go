@@ -124,14 +124,9 @@ gh act pull_request -W .github/workflows/reviewdog.yaml --secret GITHUB_TOKEN=$(
 
 **Known limitations, both confirmed by hand:**
 
-- `deploy.yaml` (the main build/lint/test pipeline) currently fails
-  to parse under `act`: its schema validator doesn't yet recognize the
-  `code-quality` permission scope (the same very-new GitHub Actions feature
-  `make lint-yaml` already has to `-ignore` for `actionlint`), and that one
-  unknown property cascades into spurious "Unknown Property" errors for the
-  rest of the job. It also targets `runs-on: [self-hosted, ...]` runners,
-  which `act` can't resolve without an explicit `-P <label>=<image>`
-  mapping even once the schema issue is fixed.
+- `deploy.yaml` (the main build/lint/test pipeline) targets
+  `runs-on: [self-hosted, ...]` runners, which `act` can't resolve without
+  an explicit `-P <label>=<image>` mapping.
 - `reviewdog.yaml` parses and its jobs really execute (pulls the real
   action code, runs it in Docker) - but steps that call back to the GitHub
   API, like reviewdog posting check results, need a real `GITHUB_TOKEN`
