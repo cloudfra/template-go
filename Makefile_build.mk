@@ -143,6 +143,13 @@ build/packages/release.tar.gz: $(RELEASE_BINARIES)
 	cd "$(REPOSITORY_ROOT)/build/release/"; tar -cvf - * | gzip -9 - > "$(REPOSITORY_ROOT)/$@"
 	touch "$(REPOSITORY_ROOT)/$@"
 
+# Release binaries are downloaded over a network, so the release attaches a
+# checksum list naming them. Build it after the tarball above: that recipe
+# packs every file in build/release/, so a SHA256SUMS written first would
+# end up inside the archive that does not list it.
+build/release/SHA256SUMS: $(RELEASE_BINARIES)
+	cd "$(REPOSITORY_ROOT)/build/release/"; sha256sum $(notdir $(RELEASE_BINARIES)) > SHA256SUMS
+
 build/packages/all-binaries.tar.gz: $(ALL_BINARIES)
 	mkdir -p "$(dir $@)"
 	cd "$(REPOSITORY_ROOT)/build/bin/"; tar -cvf - * | gzip -9 - > "$(REPOSITORY_ROOT)/$@"
