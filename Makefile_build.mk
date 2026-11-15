@@ -401,7 +401,15 @@ system-info:
 	@uname -a
 	@echo ""
 	@echo "Storage Metrics"
-	@df -h
+	@# df waits forever on a mount that stopped answering, which held a CI runner
+	@# for its whole 20 minutes twice, so it gets 10 s.
+	@# Windows has its own timeout, which only waits, so it keeps plain df. A host
+	@# with no timeout at all (macOS) keeps plain df for the same reason.
+	@if [ "$(OS)" != "Windows_NT" ] && command -v timeout >/dev/null 2>&1; then \
+		timeout 10 df -h || echo "df gave up after 10 s: a mount on this machine isn't answering"; \
+	else \
+		df -h; \
+	fi
 
 sync-upstream:
 	-git fetch origin; git add -A; git commit -m"Save pending changes."; git rebase -i origin/main
