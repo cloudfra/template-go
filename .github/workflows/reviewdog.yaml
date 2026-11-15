@@ -32,7 +32,17 @@ jobs:
   # the step that gets skipped.
   reviewdog:
     name: runner / reviewdog
-    runs-on: ubuntu-latest
+    # While private, the checks cost Actions minutes on every push and
+    # there is no fork-supplied code to isolate, so they go to the same
+    # self-hosted pool deploy.yaml uses. A public repo can get a pull
+    # request from anyone, and a self-hosted runner would run that code on
+    # our own hardware, so it moves back to a GitHub-hosted VM. fromJSON
+    # because runs-on wants a list of labels, and 'linux' because the pool
+    # also has Windows runners that can't run these steps.
+    runs-on: >-
+      ${{ fromJSON(github.event.repository.private
+      && '["self-hosted", "linux"]'
+      || '["ubuntu-latest"]') }}
     # Union of what the steps need: checks: write for reviewdog's default
     # github-pr-check reporter, pull-requests: write for the steps using
     # github-pr-review and for dependency-review's review comments.
