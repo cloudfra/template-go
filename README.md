@@ -101,7 +101,8 @@ package; the build system picks it up automatically.
 | `make windows-binaries`            | Build Windows binaries only                                                                                    |
 | `make presubmit`                   | Run the full suite of checks used in CI (tools, lint, build, test-deflake)                                     |
 | `make clean`                       | Remove build outputs                                                                                           |
-| `make deps`                        | Install / upgrade Go module dependencies                                                                       |
+| `make deps`                        | Download the Go module dependencies pinned in `go.mod`                                                         |
+| `make upgrade-deps`                | Upgrade Go module dependencies to their latest releases                                                        |
 
 ## Testing
 
